@@ -42,3 +42,8 @@ buildNumber.properties
 .DS_Store
 Thumbs.db
 
+### Credentials locaux — NE JAMAIS COMMITER ###
+src/main/resources/application-dev.yml
+src/main/resources/application-prod.yml
+src/main/resources/application-staging.yml
+
