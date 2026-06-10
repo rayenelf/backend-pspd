@@ -43,12 +43,15 @@ public class StubTokenServiceConfig {
             @Override
             public String generateAccessToken(User user) {
                 long exp = System.currentTimeMillis() / 1000 + accessMinutes * 60;
-                return buildJwt(Map.of(
-                        "sub", user.getEmail(),
-                        "role", user.getRole().name(),
-                        "uid", user.getId(),
-                        "exp", exp
-                ));
+                // HashMap pour autoriser les valeurs null (prenom/nom peuvent être null)
+                java.util.Map<String, Object> claims = new java.util.HashMap<>();
+                claims.put("sub",    user.getEmail());
+                claims.put("role",   user.getRole().name());
+                claims.put("uid",    user.getId());
+                claims.put("exp",    exp);
+                claims.put("prenom", user.getPrenom());   // utilisé par le dashboard frontend
+                claims.put("nom",    user.getNom());
+                return buildJwt(claims);
             }
 
             @Override
