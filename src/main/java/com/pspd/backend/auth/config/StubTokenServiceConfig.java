@@ -49,8 +49,9 @@ public class StubTokenServiceConfig {
                 claims.put("role",   user.getRole().name());
                 claims.put("uid",    user.getId());
                 claims.put("exp",    exp);
-                claims.put("prenom", user.getPrenom());   // utilisé par le dashboard frontend
-                claims.put("nom",    user.getNom());
+                claims.put("prenom",    user.getPrenom());
+                claims.put("nom",       user.getNom());
+                claims.put("telephone", user.getTelephone());
                 return buildJwt(claims);
             }
 
