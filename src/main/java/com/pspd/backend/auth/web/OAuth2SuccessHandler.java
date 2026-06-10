@@ -6,6 +6,7 @@ import com.pspd.backend.user.domain.User;
 import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
+import jakarta.servlet.http.HttpSession;
 import lombok.RequiredArgsConstructor;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.security.core.Authentication;
@@ -45,7 +46,16 @@ public class OAuth2SuccessHandler implements AuthenticationSuccessHandler {
         String prenom = principal.getAttribute("given_name");
         String nom    = principal.getAttribute("family_name");
 
-        User user = provisioningService.findOrCreate(email, prenom, nom);
+        // Lire le rôle pré-sélectionné (depuis la page Signup via OAuthInitiateController).
+        // Null si l'utilisateur vient de la page Login → findOrCreate défaut CLIENT.
+        HttpSession session = request.getSession(false);
+        String pendingRole = null;
+        if (session != null) {
+            pendingRole = (String) session.getAttribute(OAuthInitiateController.SESSION_KEY_PENDING_ROLE);
+            session.removeAttribute(OAuthInitiateController.SESSION_KEY_PENDING_ROLE);
+        }
+
+        User user = provisioningService.findOrCreate(email, prenom, nom, pendingRole);
 
         String accessToken  = tokenService.generateAccessToken(user);
         String refreshToken = tokenService.generateRefreshToken(user);

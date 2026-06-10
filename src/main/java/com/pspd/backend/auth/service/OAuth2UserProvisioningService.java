@@ -20,26 +20,33 @@ public class OAuth2UserProvisioningService {
 
     /**
      * findOrCreate : si l'email existe déjà (compte email/password OU OAuth2 antérieur),
-     * on retourne le compte existant. Sinon on crée un nouveau CLIENT.
+     * on retourne le compte existant sans modifier son rôle.
+     * Sinon on crée un nouveau compte avec le rôle fourni.
      *
-     * @param email  email vérifié fourni par Google
-     * @param prenom given_name Google (peut être null)
-     * @param nom    family_name Google (peut être null)
+     * @param email       email vérifié fourni par Google
+     * @param prenom      given_name Google (peut être null)
+     * @param nom         family_name Google (peut être null)
+     * @param pendingRole rôle choisi sur la page Signup ("CLIENT" ou "PRESTATAIRE").
+     *                    Ignoré si le compte existe déjà.
+     *                    Null (login page) → défaut CLIENT pour un nouveau compte.
      */
     @Transactional
-    public User findOrCreate(String email, String prenom, String nom) {
+    public User findOrCreate(String email, String prenom, String nom, String pendingRole) {
         return userRepository.findByEmail(email)
-            .orElseGet(() -> userRepository.save(
-                User.builder()
-                    .email(email)
-                    .motDePasseHash(null)            // compte OAuth2 — pas de mot de passe
-                    .telephone("pending")            // colonne NOT NULL : Google ne fournit pas le tel
-                    .prenom(prenom)
-                    .nom(nom)
-                    .role(Role.CLIENT)
-                    .statutCompte(StatutCompte.ACTIF)
-                    .doubleAuthActive(false)
-                    .build()
-            ));
+            .orElseGet(() -> {
+                Role role = "PRESTATAIRE".equals(pendingRole) ? Role.PRESTATAIRE : Role.CLIENT;
+                return userRepository.save(
+                    User.builder()
+                        .email(email)
+                        .motDePasseHash(null)        // compte OAuth2 — pas de mot de passe
+                        .telephone("pending")        // colonne NOT NULL : Google ne fournit pas le tel
+                        .prenom(prenom)
+                        .nom(nom)
+                        .role(role)
+                        .statutCompte(StatutCompte.ACTIF)
+                        .doubleAuthActive(false)
+                        .build()
+                );
+            });
     }
 }

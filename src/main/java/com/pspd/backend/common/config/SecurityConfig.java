@@ -39,10 +39,11 @@ public class SecurityConfig {
                     "/api/auth/2fa/verify",
                     "/api/auth/refresh"
                 ).permitAll()
-                // ── Callbacks OAuth2 ────────────────────────────────────
+                // ── Callbacks OAuth2 + initiation avec rôle ────────────
                 .requestMatchers(
                     "/login/oauth2/code/**",
-                    "/oauth2/**"
+                    "/oauth2/**",
+                    "/api/auth/oauth2/google"       // OAuthInitiateController (signup avec rôle)
                 ).permitAll()
                 // ── Tout le reste requiert une authentification ─────────
                 .anyRequest().authenticated()
