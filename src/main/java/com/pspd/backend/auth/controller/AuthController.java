@@ -3,6 +3,8 @@ package com.pspd.backend.auth.controller;
 import com.pspd.backend.auth.dto.RegisterRequest;
 import com.pspd.backend.auth.dto.RegisterResponse;
 import com.pspd.backend.auth.service.AuthService;
+import com.pspd.backend.auth.service.EmailVerificationService;
+import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.HttpStatus;
@@ -15,6 +17,8 @@ import org.springframework.web.bind.annotation.RestController;
 import com.pspd.backend.auth.dto.LoginRequest;
 import com.pspd.backend.auth.dto.LoginResponse;
 import com.pspd.backend.auth.dto.RefreshRequest;
+import com.pspd.backend.auth.dto.VerifyEmailRequest;
+import com.pspd.backend.auth.dto.EmailRequest;
 
 @RestController
 @RequestMapping("/api/auth")
@@ -23,6 +27,7 @@ import com.pspd.backend.auth.dto.RefreshRequest;
 public class AuthController {
 
     private final AuthService authService;
+    private final EmailVerificationService emailVerificationService;
 
     @PostMapping("/register")
     public ResponseEntity<RegisterResponse> register(@RequestBody RegisterRequest req) {
@@ -50,6 +55,20 @@ public class AuthController {
         if (authentication != null) {
             log.info("[AUDIT] Déconnexion de {}", authentication.getName());
         }
+        return ResponseEntity.noContent().build();
+    }
+
+    /** Valide le lien de vérification d'email reçu par mail. */
+    @PostMapping("/verify-email")
+    public ResponseEntity<Void> verifyEmail(@Valid @RequestBody VerifyEmailRequest req) {
+        emailVerificationService.verify(req.token());
+        return ResponseEntity.noContent().build();
+    }
+
+    /** Renvoie un lien de vérification (réponse 204 quoi qu'il arrive — pas de fuite d'info). */
+    @PostMapping("/resend-verification")
+    public ResponseEntity<Void> resendVerification(@Valid @RequestBody EmailRequest req) {
+        emailVerificationService.resend(req.email());
         return ResponseEntity.noContent().build();
     }
 }

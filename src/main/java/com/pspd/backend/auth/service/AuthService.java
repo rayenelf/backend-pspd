@@ -26,6 +26,7 @@ public class AuthService {
     private final PasswordEncoder passwordEncoder;
     private final TokenService tokenService;
     private final TwoFactorService twoFactorService;
+    private final EmailVerificationService emailVerificationService;
 
     public RegisterResponse register(RegisterRequest req) {
         if (req.getEmail() == null || req.getEmail().isBlank()) {
@@ -67,6 +68,9 @@ public class AuthService {
             prestataireRepository.save(p);
         }
 
+        // Envoi du lien de vérification d'email (compte non vérifié à la création).
+        emailVerificationService.sendVerification(user);
+
         return new RegisterResponse(user.getId(), user.getEmail(), user.getRole().name(), user.getStatutCompte().name());
     }
 
@@ -84,6 +88,11 @@ public class AuthService {
 
         if (req.getMotDePasse() == null || !passwordEncoder.matches(req.getMotDePasse(), user.getMotDePasseHash())) {
             throw new ResponseStatusException(HttpStatus.UNAUTHORIZED, "Identifiants invalides");
+        }
+
+        // Email non vérifié → on bloque (le front proposera de renvoyer le lien).
+        if (!user.isEmailVerifie()) {
+            throw new ResponseStatusException(HttpStatus.FORBIDDEN, "EMAIL_NOT_VERIFIED");
         }
 
         // 2FA active → on envoie un OTP et on renvoie un challenge (pas de token).

@@ -45,6 +45,7 @@ public class OAuth2UserProvisioningService {
                         .role(role)
                         .statutCompte(StatutCompte.ACTIF)
                         .doubleAuthActive(false)
+                        .emailVerifie(true)   // email Google déjà vérifié
                         .build()
                 );
             });

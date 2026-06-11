@@ -46,7 +46,9 @@ public class SecurityConfig {
                     "/api/auth/login",
                     "/api/auth/2fa/send",    // envoi OTP (login flow + renvoi)
                     "/api/auth/2fa/verify",  // vérification OTP → tokens
-                    "/api/auth/refresh"
+                    "/api/auth/refresh",
+                    "/api/auth/verify-email",        // vérification d'email
+                    "/api/auth/resend-verification"  // renvoi du lien
                 ).permitAll()
                 // ── Callbacks OAuth2 + initiation avec rôle ────────────
                 .requestMatchers(

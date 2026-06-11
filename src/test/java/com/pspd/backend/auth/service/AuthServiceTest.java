@@ -32,6 +32,7 @@ class AuthServiceTest {
     @Mock PasswordEncoder       passwordEncoder;
     @Mock TokenService          tokenService;
     @Mock TwoFactorService      twoFactorService;
+    @Mock EmailVerificationService emailVerificationService;
 
     @InjectMocks AuthService service;
 
@@ -80,9 +81,21 @@ class AuthServiceTest {
     }
 
     @Test
+    void login_email_non_verifie_renvoie_403() {
+        User user = User.builder().id("u1").email("majd@example.com")
+                .motDePasseHash("HASH").role(Role.CLIENT).emailVerifie(false).build();
+        when(userRepository.findByEmail("majd@example.com")).thenReturn(Optional.of(user));
+        when(passwordEncoder.matches("password123", "HASH")).thenReturn(true);
+
+        assertThatThrownBy(() -> service.authenticate(new LoginRequest("majd@example.com", "password123")))
+                .isInstanceOf(ResponseStatusException.class)
+                .hasMessageContaining("EMAIL_NOT_VERIFIED");
+    }
+
+    @Test
     void login_succes_renvoie_les_deux_tokens() {
         User user = User.builder().id("u1").email("majd@example.com")
-                .motDePasseHash("HASH").role(Role.CLIENT).build();
+                .motDePasseHash("HASH").role(Role.CLIENT).emailVerifie(true).build();
         when(userRepository.findByEmail("majd@example.com")).thenReturn(Optional.of(user));
         when(passwordEncoder.matches("password123", "HASH")).thenReturn(true);
         when(tokenService.generateAccessToken(user)).thenReturn("ACCESS");
@@ -99,7 +112,7 @@ class AuthServiceTest {
     @Test
     void login_avec_2fa_active_renvoie_un_challenge_sans_token() {
         User user = User.builder().id("u1").email("majd@example.com")
-                .motDePasseHash("HASH").role(Role.CLIENT).doubleAuthActive(true).build();
+                .motDePasseHash("HASH").role(Role.CLIENT).emailVerifie(true).doubleAuthActive(true).build();
         when(userRepository.findByEmail("majd@example.com")).thenReturn(Optional.of(user));
         when(passwordEncoder.matches("password123", "HASH")).thenReturn(true);
 
