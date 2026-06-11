@@ -4,20 +4,23 @@ import com.pspd.backend.auth.dto.*;
 import com.pspd.backend.auth.service.TwoFactorService;
 import com.pspd.backend.auth.service.TwoFactorService.VerifyResult;
 import com.pspd.backend.auth.service.TokenService;
+import com.pspd.backend.common.error.ApiException;
 import com.pspd.backend.user.domain.User;
 import com.pspd.backend.user.repository.UserRepository;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.*;
 
-import java.util.Map;
 import java.util.Optional;
 
 @RestController
 @RequiredArgsConstructor
+@Slf4j
 public class TwoFactorController {
 
     private final TwoFactorService twoFactorService;
@@ -45,12 +48,13 @@ public class TwoFactorController {
      * Endpoint public (avant authentification complète).
      */
     @PostMapping("/api/auth/2fa/verify")
-    public ResponseEntity<?> verifyOtp(@Valid @RequestBody Verify2faRequest req) {
+    public ResponseEntity<AuthResponse> verifyOtp(@Valid @RequestBody Verify2faRequest req) {
         VerifyResult result = twoFactorService.verify(req.email(), req.code());
 
         return switch (result.status()) {
             case SUCCESS -> {
                 User user = result.user();
+                log.info("[AUDIT] 2FA vérifiée avec succès pour userId={}", user.getId());
                 yield ResponseEntity.ok(new AuthResponse(
                     tokenService.generateAccessToken(user),
                     tokenService.generateRefreshToken(user),
@@ -58,14 +62,15 @@ public class TwoFactorController {
                     user.getRole().name()
                 ));
             }
-            case EXPIRED           -> ResponseEntity.badRequest()
-                .body(Map.of("message", "Code OTP expiré — demandez un nouveau code."));
-            case TOO_MANY_ATTEMPTS -> ResponseEntity.status(429)
-                .body(Map.of("message", "Trop de tentatives incorrectes — demandez un nouveau code."));
-            case INVALID_CODE      -> ResponseEntity.badRequest()
-                .body(Map.of("message", "Code incorrect — vérifiez votre code."));
-            default                -> ResponseEntity.badRequest()
-                .body(Map.of("message", "Aucun OTP en attente pour cet email."));
+            case EXPIRED           -> throw ApiException.badRequest(
+                "OTP_EXPIRED", "Code OTP expiré — demandez un nouveau code.");
+            case TOO_MANY_ATTEMPTS -> throw new ApiException(
+                HttpStatus.TOO_MANY_REQUESTS, "OTP_TOO_MANY_ATTEMPTS",
+                "Trop de tentatives incorrectes — demandez un nouveau code.");
+            case INVALID_CODE      -> throw ApiException.badRequest(
+                "OTP_INVALID", "Code incorrect — vérifiez votre code.");
+            default                -> throw ApiException.badRequest(
+                "OTP_NONE", "Aucun OTP en attente pour cet email.");
         };
     }
 
@@ -81,6 +86,7 @@ public class TwoFactorController {
         userRepository.findByEmail(email).ifPresent(user -> {
             user.setDoubleAuthActive(req.active());
             userRepository.save(user);
+            log.info("[AUDIT] 2FA {} pour userId={}", req.active() ? "activée" : "désactivée", user.getId());
         });
         return ResponseEntity.noContent().build();
     }
