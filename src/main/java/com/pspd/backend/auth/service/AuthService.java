@@ -12,7 +12,6 @@ import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.web.server.ResponseStatusException;
 import java.util.Optional;
-import java.util.UUID;
 
 import com.pspd.backend.auth.dto.LoginRequest;
 import com.pspd.backend.auth.dto.LoginResponse;
@@ -25,6 +24,8 @@ public class AuthService {
     private final ClientRepository clientRepository;
     private final PrestataireRepository prestataireRepository;
     private final PasswordEncoder passwordEncoder;
+    private final TokenService tokenService;
+    private final TwoFactorService twoFactorService;
 
     public RegisterResponse register(RegisterRequest req) {
         if (req.getEmail() == null || req.getEmail().isBlank()) {
@@ -85,8 +86,38 @@ public class AuthService {
             throw new ResponseStatusException(HttpStatus.UNAUTHORIZED, "Identifiants invalides");
         }
 
-        String token = UUID.randomUUID().toString();
+        // 2FA active → on envoie un OTP et on renvoie un challenge (pas de token).
+        if (user.isDoubleAuthActive()) {
+            twoFactorService.generateAndSendOtp(user);
+            return LoginResponse.twoFactorChallenge(user.getEmail());
+        }
 
-        return new LoginResponse(user.getId(), user.getEmail(), user.getRole().name(), user.getStatutCompte().name(), token);
+        // JWT signé via TokenService (stub en dev, TokenServiceImpl du collègue ensuite).
+        // Le front décode ce token pour lire role/uid/prenom… — un UUID ne fonctionnerait pas.
+        return new LoginResponse(
+                user.getId(), user.getEmail(), user.getRole().name(), user.getStatutCompte().name(),
+                tokenService.generateAccessToken(user),
+                tokenService.generateRefreshToken(user),
+                false);
+    }
+
+    /**
+     * Rafraîchit l'access token à partir d'un refresh token valide (B6 / bug #5).
+     * Rotation : émet un nouveau couple access + refresh.
+     */
+    public LoginResponse refresh(String refreshToken) {
+        if (refreshToken == null || !tokenService.isValid(refreshToken)) {
+            throw new ResponseStatusException(HttpStatus.UNAUTHORIZED, "Refresh token invalide ou expiré");
+        }
+
+        String email = tokenService.extractEmail(refreshToken);
+        User user = userRepository.findByEmail(email)
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.UNAUTHORIZED, "Utilisateur introuvable"));
+
+        return new LoginResponse(
+                user.getId(), user.getEmail(), user.getRole().name(), user.getStatutCompte().name(),
+                tokenService.generateAccessToken(user),
+                tokenService.generateRefreshToken(user),
+                false);
     }
 }

@@ -12,6 +12,7 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 import com.pspd.backend.auth.dto.LoginRequest;
 import com.pspd.backend.auth.dto.LoginResponse;
+import com.pspd.backend.auth.dto.RefreshRequest;
 
 @RestController
 @RequestMapping("/api/auth")
@@ -30,5 +31,10 @@ public class AuthController {
     public ResponseEntity<LoginResponse> login(@RequestBody LoginRequest req) {
         LoginResponse resp = authService.authenticate(req);
         return ResponseEntity.ok(resp);
+    }
+
+    @PostMapping("/refresh")
+    public ResponseEntity<LoginResponse> refresh(@RequestBody RefreshRequest req) {
+        return ResponseEntity.ok(authService.refresh(req.getRefreshToken()));
     }
 }

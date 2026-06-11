@@ -12,6 +12,7 @@ import org.springframework.validation.FieldError;
 import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
+import org.springframework.web.server.ResponseStatusException;
 
 import java.util.List;
 
@@ -69,6 +70,19 @@ public class GlobalExceptionHandler {
     public ResponseEntity<ErrorResponse> handleAuth(AuthenticationException ex, HttpServletRequest req) {
         return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
             .body(ErrorResponse.of(401, "UNAUTHORIZED", "Authentification requise.", req.getRequestURI()));
+    }
+
+    /**
+     * Exceptions métier levées via ResponseStatusException (ex. AuthService du collègue :
+     * 409 email déjà utilisé, 401 identifiants invalides…). On respecte le statut porté
+     * et on ne loggue PAS de stack trace : ce sont des réponses métier légitimes, pas des 500.
+     */
+    @ExceptionHandler(ResponseStatusException.class)
+    public ResponseEntity<ErrorResponse> handleResponseStatus(ResponseStatusException ex, HttpServletRequest req) {
+        int status = ex.getStatusCode().value();
+        String message = ex.getReason() != null ? ex.getReason() : "Requête refusée.";
+        return ResponseEntity.status(status)
+            .body(ErrorResponse.of(status, "BUSINESS_ERROR", message, req.getRequestURI()));
     }
 
     /** Filet de sécurité — toute exception non gérée → 500 (loggée, message générique). */
