@@ -12,6 +12,7 @@ import org.springframework.validation.FieldError;
 import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
+import org.springframework.web.multipart.MaxUploadSizeExceededException;
 import org.springframework.web.server.ResponseStatusException;
 
 import java.util.List;
@@ -48,6 +49,14 @@ public class GlobalExceptionHandler {
     public ResponseEntity<ErrorResponse> handleConstraint(ConstraintViolationException ex, HttpServletRequest req) {
         return ResponseEntity.badRequest()
             .body(ErrorResponse.of(400, "VALIDATION_ERROR", ex.getMessage(), req.getRequestURI()));
+    }
+
+    /** Fichier uploadé trop volumineux (B9). */
+    @ExceptionHandler(MaxUploadSizeExceededException.class)
+    public ResponseEntity<ErrorResponse> handleMaxUpload(MaxUploadSizeExceededException ex, HttpServletRequest req) {
+        return ResponseEntity.status(HttpStatus.PAYLOAD_TOO_LARGE)
+            .body(ErrorResponse.of(413, "FILE_TOO_LARGE", "Le fichier dépasse la taille maximale autorisée (5 Mo).",
+                req.getRequestURI()));
     }
 
     /** Corps de requête illisible / JSON malformé. */
