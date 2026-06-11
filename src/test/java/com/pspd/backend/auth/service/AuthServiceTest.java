@@ -33,6 +33,7 @@ class AuthServiceTest {
     @Mock TokenService          tokenService;
     @Mock TwoFactorService      twoFactorService;
     @Mock EmailVerificationService emailVerificationService;
+    @Mock TokenBlacklistService tokenBlacklistService;
 
     @InjectMocks AuthService service;
 

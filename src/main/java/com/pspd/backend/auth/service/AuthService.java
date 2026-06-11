@@ -27,6 +27,7 @@ public class AuthService {
     private final TokenService tokenService;
     private final TwoFactorService twoFactorService;
     private final EmailVerificationService emailVerificationService;
+    private final TokenBlacklistService tokenBlacklistService;
 
     public RegisterResponse register(RegisterRequest req) {
         if (req.getEmail() == null || req.getEmail().isBlank()) {
@@ -115,7 +116,8 @@ public class AuthService {
      * Rotation : émet un nouveau couple access + refresh.
      */
     public LoginResponse refresh(String refreshToken) {
-        if (refreshToken == null || !tokenService.isValid(refreshToken)) {
+        if (refreshToken == null || !tokenService.isValid(refreshToken)
+                || tokenBlacklistService.isBlacklisted(refreshToken)) {
             throw new ResponseStatusException(HttpStatus.UNAUTHORIZED, "Refresh token invalide ou expiré");
         }
 

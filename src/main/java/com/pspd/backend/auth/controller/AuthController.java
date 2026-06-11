@@ -4,6 +4,7 @@ import com.pspd.backend.auth.dto.RegisterRequest;
 import com.pspd.backend.auth.dto.RegisterResponse;
 import com.pspd.backend.auth.service.AuthService;
 import com.pspd.backend.auth.service.EmailVerificationService;
+import com.pspd.backend.auth.service.TokenBlacklistService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -12,6 +13,7 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
+import org.springframework.web.bind.annotation.RequestHeader;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 import com.pspd.backend.auth.dto.LoginRequest;
@@ -28,6 +30,7 @@ public class AuthController {
 
     private final AuthService authService;
     private final EmailVerificationService emailVerificationService;
+    private final TokenBlacklistService tokenBlacklistService;
 
     @PostMapping("/register")
     public ResponseEntity<RegisterResponse> register(@RequestBody RegisterRequest req) {
@@ -47,11 +50,20 @@ public class AuthController {
     }
 
     /**
-     * Déconnexion. En Phase 1 (sans Redis), le serveur ne révoque pas le JWT :
-     * le client purge ses tokens. La révocation par blacklist arrivera en Phase 2.
+     * Déconnexion avec révocation réelle (#2) : l'access token (en-tête) et le
+     * refresh token (corps, optionnel) sont blacklistés dans Redis jusqu'à expiration.
      */
     @PostMapping("/logout")
-    public ResponseEntity<Void> logout(Authentication authentication) {
+    public ResponseEntity<Void> logout(
+            @RequestHeader(value = "Authorization", required = false) String authHeader,
+            @RequestBody(required = false) RefreshRequest body,
+            Authentication authentication) {
+        if (authHeader != null && authHeader.startsWith("Bearer ")) {
+            tokenBlacklistService.blacklist(authHeader.substring(7));
+        }
+        if (body != null && body.getRefreshToken() != null) {
+            tokenBlacklistService.blacklist(body.getRefreshToken());
+        }
         if (authentication != null) {
             log.info("[AUDIT] Déconnexion de {}", authentication.getName());
         }

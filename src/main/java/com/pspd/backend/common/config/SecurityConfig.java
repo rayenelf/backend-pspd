@@ -2,6 +2,7 @@ package com.pspd.backend.common.config;
 
 import com.pspd.backend.auth.web.JwtAuthenticationFilter;
 import com.pspd.backend.auth.web.OAuth2SuccessHandler;
+import com.pspd.backend.common.error.RestAuthenticationEntryPoint;
 import lombok.RequiredArgsConstructor;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
@@ -26,8 +27,9 @@ import java.util.List;
 @RequiredArgsConstructor
 public class SecurityConfig {
 
-    private final OAuth2SuccessHandler    oauth2SuccessHandler;   // B8 (Majd)
-    private final JwtAuthenticationFilter jwtAuthenticationFilter; // B5
+    private final OAuth2SuccessHandler         oauth2SuccessHandler;    // B8 (Majd)
+    private final JwtAuthenticationFilter      jwtAuthenticationFilter; // B5
+    private final RestAuthenticationEntryPoint restAuthenticationEntryPoint;
 
     @Bean
     public SecurityFilterChain filterChain(HttpSecurity http) throws Exception {
@@ -63,6 +65,8 @@ public class SecurityConfig {
             .oauth2Login(oauth2 -> oauth2
                 .successHandler(oauth2SuccessHandler)
             )
+            // ── API : 401 JSON au lieu d'une redirection 302 vers le login OAuth ──
+            .exceptionHandling(ex -> ex.authenticationEntryPoint(restAuthenticationEntryPoint))
             // ── B5 : filtre JWT avant l'authentification par formulaire ──
             .addFilterBefore(jwtAuthenticationFilter, UsernamePasswordAuthenticationFilter.class);
 
