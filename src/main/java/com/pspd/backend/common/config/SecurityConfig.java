@@ -36,7 +36,8 @@ public class SecurityConfig {
                 .requestMatchers(
                     "/api/auth/register",
                     "/api/auth/login",
-                    "/api/auth/2fa/verify",
+                    "/api/auth/2fa/send",    // envoi OTP (login flow + renvoi)
+                    "/api/auth/2fa/verify",  // vérification OTP → tokens
                     "/api/auth/refresh"
                 ).permitAll()
                 // ── Callbacks OAuth2 + initiation avec rôle ────────────
