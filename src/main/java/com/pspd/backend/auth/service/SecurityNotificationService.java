@@ -1,6 +1,7 @@
 package com.pspd.backend.auth.service;
 
 import com.pspd.backend.common.mail.EmailService;
+import com.pspd.backend.common.mail.EmailTemplates;
 import com.pspd.backend.user.domain.User;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.redis.core.StringRedisTemplate;
@@ -34,29 +35,16 @@ public class SecurityNotificationService {
         redis.expire(key, KNOWN_TTL);
         boolean isNew = added != null && added > 0;
         if (isNew) {
-            emailService.send(user.getEmail(), "Nouvelle connexion à votre compte Domivo", """
-                    Bonjour %s,
-
-                    Une connexion vient d'être effectuée sur votre compte :
-                      • Appareil : %s
-                      • IP       : %s
-
-                    Si c'était vous, aucune action n'est nécessaire.
-                    Sinon, changez votre mot de passe et déconnectez vos appareils
-                    depuis Profil → Sécurité.
-                    """.formatted(displayName(user), device, ip));
+            emailService.send(user.getEmail(), "Nouvelle connexion à votre compte Domivo",
+                    EmailTemplates.newLogin(displayName(user), device, ip));
         }
     }
 
     /** Notifie l'activation ou la désactivation de la 2FA. */
     public void notify2faChanged(User user, boolean active) {
         emailService.send(user.getEmail(),
-                active ? "Double authentification activée" : "Double authentification désactivée", """
-                Bonjour %s,
-
-                La double authentification a été %s sur votre compte Domivo.
-                Si vous n'êtes pas à l'origine de ce changement, sécurisez votre compte immédiatement.
-                """.formatted(displayName(user), active ? "ACTIVÉE" : "DÉSACTIVÉE"));
+                active ? "Double authentification activée" : "Double authentification désactivée",
+                EmailTemplates.twoFactorChanged(displayName(user), active));
     }
 
     private String displayName(User user) {

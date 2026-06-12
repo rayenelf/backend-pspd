@@ -8,6 +8,7 @@ import com.pspd.backend.user.repository.PrestataireRepository;
 import com.pspd.backend.user.repository.UserRepository;
 import com.pspd.backend.common.jwt.JwtClaims;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.HttpStatus;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
@@ -20,6 +21,7 @@ import com.pspd.backend.auth.dto.LoginResponse;
 
 @Service
 @RequiredArgsConstructor
+@Slf4j
 public class AuthService {
 
     private final UserRepository userRepository;
@@ -74,8 +76,13 @@ public class AuthService {
             prestataireRepository.save(p);
         }
 
-        // Envoi du lien de vérification d'email (compte non vérifié à la création).
-        emailVerificationService.sendVerification(user);
+        // Envoi du lien de vérification — best-effort : un échec SMTP ne doit pas
+        // faire échouer l'inscription (l'utilisateur pourra demander un renvoi).
+        try {
+            emailVerificationService.sendVerification(user);
+        } catch (Exception e) {
+            log.warn("Échec de l'envoi de l'email de vérification à {} : {}", user.getEmail(), e.getMessage());
+        }
 
         return new RegisterResponse(user.getId(), user.getEmail(), user.getRole().name(), user.getStatutCompte().name());
     }

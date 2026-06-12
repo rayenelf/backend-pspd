@@ -2,6 +2,8 @@ package com.pspd.backend.auth.service;
 
 import com.pspd.backend.auth.domain.OtpCode;
 import com.pspd.backend.auth.repository.OtpCodeRepository;
+import com.pspd.backend.common.mail.EmailService;
+import com.pspd.backend.common.mail.EmailTemplates;
 import com.pspd.backend.user.domain.User;
 import com.pspd.backend.user.repository.UserRepository;
 import lombok.RequiredArgsConstructor;
@@ -26,8 +28,9 @@ public class TwoFactorService {
 
     private final OtpCodeRepository otpCodeRepository;
     private final UserRepository    userRepository;
+    private final EmailService      emailService;
 
-    /** Génère un OTP 6 chiffres, le stocke haché (SHA-256) et le loggue (stub SMS/email). */
+    /** Génère un OTP 6 chiffres, le stocke haché (SHA-256) et l'envoie par email. */
     @Transactional
     public void generateAndSendOtp(User user) {
         otpCodeRepository.deleteByUserId(user.getId());
@@ -43,8 +46,11 @@ public class TwoFactorService {
                 .build();
         otpCodeRepository.save(otp);
 
-        // STUB Phase 1 — remplacer par Twilio/SendGrid en Phase 2
-        log.info("[2FA STUB] Code OTP pour {} : {}", user.getEmail(), code);
+        // Envoi du code par email (template HTML). Log conservé pour le confort en dev.
+        log.info("[2FA] Code OTP pour {} : {}", user.getEmail(), code);
+        String prenom = user.getPrenom() != null ? user.getPrenom() : "";
+        emailService.send(user.getEmail(), "Votre code de connexion Domivo",
+                EmailTemplates.otp(prenom, code, OTP_TTL_MINUTES));
     }
 
     public enum VerifyStatus {

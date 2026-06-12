@@ -4,6 +4,7 @@ import com.pspd.backend.auth.domain.EmailVerificationToken;
 import com.pspd.backend.auth.repository.EmailVerificationTokenRepository;
 import com.pspd.backend.common.error.ApiException;
 import com.pspd.backend.common.mail.EmailService;
+import com.pspd.backend.common.mail.EmailTemplates;
 import com.pspd.backend.user.domain.User;
 import com.pspd.backend.user.repository.UserRepository;
 import lombok.RequiredArgsConstructor;
@@ -49,14 +50,10 @@ public class EmailVerificationService {
                 .build());
 
         String link = frontendBaseUrl + "/auth/verify-email?token=" + rawToken;
-        emailService.send(user.getEmail(), "Confirmez votre adresse email — Domivo", """
-                Bonjour %s,
-
-                Confirmez votre adresse email en cliquant sur ce lien (valable 24 h) :
-                %s
-
-                Si vous n'êtes pas à l'origine de cette inscription, ignorez ce message.
-                """.formatted(user.getPrenom() != null ? user.getPrenom() : "", link));
+        String prenom = user.getPrenom() != null ? user.getPrenom() : "";
+        emailService.send(user.getEmail(),
+                "Confirmez votre adresse email — Domivo",
+                EmailTemplates.verification(prenom, link));
     }
 
     /** Renvoie un email de vérification si le compte existe et n'est pas déjà vérifié. */

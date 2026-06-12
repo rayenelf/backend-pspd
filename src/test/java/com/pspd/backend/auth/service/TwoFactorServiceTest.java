@@ -29,6 +29,7 @@ class TwoFactorServiceTest {
 
     @Mock OtpCodeRepository otpCodeRepository;
     @Mock UserRepository    userRepository;
+    @Mock com.pspd.backend.common.mail.EmailService emailService;
 
     @InjectMocks TwoFactorService service;
 
