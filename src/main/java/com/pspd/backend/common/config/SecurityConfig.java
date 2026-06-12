@@ -50,7 +50,9 @@ public class SecurityConfig {
                     "/api/auth/2fa/verify",  // vérification OTP → tokens
                     "/api/auth/refresh",
                     "/api/auth/verify-email",        // vérification d'email
-                    "/api/auth/resend-verification"  // renvoi du lien
+                    "/api/auth/resend-verification", // renvoi du lien
+                    "/api/auth/forgot-password",     // demande de réinitialisation
+                    "/api/auth/reset-password"       // application du nouveau mdp
                 ).permitAll()
                 // ── Callbacks OAuth2 + initiation avec rôle ────────────
                 .requestMatchers(
