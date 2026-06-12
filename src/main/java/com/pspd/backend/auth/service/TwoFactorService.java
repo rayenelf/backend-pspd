@@ -46,11 +46,11 @@ public class TwoFactorService {
                 .build();
         otpCodeRepository.save(otp);
 
-        // Envoi du code par email (template HTML). Log conservé pour le confort en dev.
-        log.info("[2FA] Code OTP pour {} : {}", user.getEmail(), code);
+        // Envoi du code uniquement par email (jamais loggué — donnée sensible).
         String prenom = user.getPrenom() != null ? user.getPrenom() : "";
         emailService.send(user.getEmail(), "Votre code de connexion Domivo",
                 EmailTemplates.otp(prenom, code, OTP_TTL_MINUTES));
+        log.info("[2FA] Code OTP envoyé par email à {}", user.getEmail());
     }
 
     public enum VerifyStatus {
