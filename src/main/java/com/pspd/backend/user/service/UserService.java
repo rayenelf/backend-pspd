@@ -88,6 +88,34 @@ public class UserService {
         sessionService.revokeAll(user.getId(), null); // déconnecte tous les appareils
     }
 
+    /**
+     * Changement de mot de passe depuis le profil (utilisateur connecté).
+     * Vérifie le mot de passe actuel (sauf compte OAuth sans mot de passe, qui en définit un).
+     * Déconnecte les autres appareils ; conserve la session courante.
+     */
+    @Transactional
+    public void changePassword(String email, String currentPassword, String newPassword, String currentSid) {
+        if (newPassword == null || newPassword.length() < 8) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Le mot de passe doit contenir au moins 8 caractères");
+        }
+
+        User user = findUser(email);
+
+        // Compte avec mot de passe → on exige le mot de passe actuel.
+        // Compte OAuth (pas de hash) → l'utilisateur définit son premier mot de passe.
+        if (user.getMotDePasseHash() != null) {
+            if (currentPassword == null || !passwordEncoder.matches(currentPassword, user.getMotDePasseHash())) {
+                throw new ResponseStatusException(HttpStatus.FORBIDDEN, "Mot de passe actuel incorrect");
+            }
+        }
+
+        user.setMotDePasseHash(passwordEncoder.encode(newPassword));
+        userRepository.save(user);
+
+        // Sécurité : déconnecter les autres appareils, garder la session courante.
+        sessionService.revokeAll(user.getId(), currentSid);
+    }
+
     private User findUser(String email) {
         return userRepository.findByEmail(email)
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Utilisateur introuvable"));
