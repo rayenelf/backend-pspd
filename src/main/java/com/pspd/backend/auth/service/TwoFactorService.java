@@ -36,7 +36,9 @@ public class TwoFactorService {
 
         OtpCode otp = OtpCode.builder()
                 .userId(user.getId())
+                .email(user.getEmail())
                 .codeHash(hashOtp(code))
+                .otpType(OtpCode.OtpType.TWO_FACTOR_AUTH)
                 .expiresAt(LocalDateTime.now().plusMinutes(OTP_TTL_MINUTES))
                 .attempts(0)
                 .used(false)

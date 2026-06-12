@@ -46,7 +46,13 @@ public class SecurityConfig {
                     "/api/auth/login",
                     "/api/auth/2fa/send",    // envoi OTP (login flow + renvoi)
                     "/api/auth/2fa/verify",  // vérification OTP → tokens
-                    "/api/auth/refresh"
+                    "/api/auth/refresh",
+                    "/api/auth/forgot-password",   // Password reset flow
+                    "/api/auth/reset-password",    // Password reset completion
+                    "/api/auth/send-verification", // Email verification
+                    "/api/auth/verify-email",      // Email verification completion
+                    "/api/auth/resend-verification", // Resend email verification
+                    "/api/auth/pending-registration/**" // Admin: delete pending registrations
                 ).permitAll()
                 // ── Callbacks OAuth2 + initiation avec rôle ────────────
                 .requestMatchers(

@@ -1,7 +1,9 @@
 package com.pspd.backend.auth.service;
 
+import com.pspd.backend.auth.domain.PendingRegistration;
 import com.pspd.backend.auth.dto.RegisterRequest;
 import com.pspd.backend.auth.dto.RegisterResponse;
+import com.pspd.backend.common.error.ApiException;
 import com.pspd.backend.user.domain.*;
 import com.pspd.backend.user.repository.ClientRepository;
 import com.pspd.backend.user.repository.PrestataireRepository;
@@ -10,6 +12,7 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.server.ResponseStatusException;
 import java.util.Optional;
 
@@ -26,14 +29,20 @@ public class AuthService {
     private final PasswordEncoder passwordEncoder;
     private final TokenService tokenService;
     private final TwoFactorService twoFactorService;
+    private final EmailVerificationService emailVerificationService;
 
-    public RegisterResponse register(RegisterRequest req) {
+    /**
+     * DEPRECATED: Ancienne méthode d'inscription directe sans vérification d'email
+     * Maintenue pour compatibilité temporaire
+     */
+    @Deprecated
+    public RegisterResponse registerDirect(RegisterRequest req) {
         if (req.getEmail() == null || req.getEmail().isBlank()) {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Email requis");
         }
 
         if (userRepository.existsByEmail(req.getEmail())) {
-            throw new ResponseStatusException(HttpStatus.CONFLICT, "Un compte existe déjà pour cet email");
+            throw ApiException.conflict("EMAIL_EXISTS", "Un compte existe déjà pour cet email.");
         }
 
         Role role = Role.valueOf(req.getRole());
@@ -66,6 +75,74 @@ public class AuthService {
                     .build();
             prestataireRepository.save(p);
         }
+
+        return new RegisterResponse(user.getId(), user.getEmail(), user.getRole().name(), user.getStatutCompte().name());
+    }
+
+    /**
+     * Initie le processus d'inscription en envoyant un OTP de vérification d'email
+     */
+    public void initiateRegistration(RegisterRequest req) {
+        if (req.getEmail() == null || req.getEmail().isBlank()) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Email requis");
+        }
+
+        // Le service de vérification d'email va vérifier si l'email existe déjà
+        emailVerificationService.sendEmailVerification(req.getEmail(), req);
+    }
+
+    /**
+     * Finalise l'inscription après vérification de l'email
+     */
+    @Transactional
+    public RegisterResponse completeRegistration(String email) {
+        // Récupérer la demande d'inscription vérifiée
+        PendingRegistration pending = emailVerificationService.getVerifiedPendingRegistration(email)
+                .orElseThrow(() -> ApiException.notFound("NO_VERIFIED_REGISTRATION", 
+                        "Aucune inscription vérifiée trouvée pour cet email"));
+
+        // Vérifier une dernière fois que l'email n'est pas déjà utilisé
+        if (userRepository.existsByEmail(email)) {
+            emailVerificationService.deletePendingRegistration(email);
+            throw ApiException.conflict("EMAIL_EXISTS", "Un compte existe déjà pour cet email.");
+        }
+
+        // Convertir les enums de PendingRegistration vers les enums de User
+        Role role = Role.valueOf(pending.getRole().name());
+
+        // Créer l'utilisateur
+        User user = User.builder()
+                .email(pending.getEmail())
+                .telephone(pending.getTelephone())
+                .nom(pending.getNom())
+                .prenom(pending.getPrenom())
+                .role(role)
+                .motDePasseHash(pending.getMotDePasseHash()) // Déjà haché
+                .build();
+
+        user = userRepository.save(user);
+
+        // Créer les entités spécifiques selon le rôle
+        if (role == Role.CLIENT && pending.getType() != null) {
+            TypeClient type = TypeClient.valueOf(pending.getType().name());
+            Client client = Client.builder()
+                    .user(user)
+                    .type(type)
+                    .raisonSociale(pending.getRaisonSociale())
+                    .matriculeFiscal(pending.getMatriculeFiscal())
+                    .build();
+            clientRepository.save(client);
+        } else if (role == Role.PRESTATAIRE) {
+            Prestataire prestataire = Prestataire.builder()
+                    .user(user)
+                    .nomCommercial(pending.getNomCommercial())
+                    .categoriePrincipale(pending.getCategoriePrincipale())
+                    .build();
+            prestataireRepository.save(prestataire);
+        }
+
+        // Supprimer la demande d'inscription en attente
+        emailVerificationService.deletePendingRegistration(email);
 
         return new RegisterResponse(user.getId(), user.getEmail(), user.getRole().name(), user.getStatutCompte().name());
     }

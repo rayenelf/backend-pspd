@@ -7,5 +7,6 @@ import java.util.Optional;
 
 public interface OtpCodeRepository extends JpaRepository<OtpCode, String> {
     Optional<OtpCode> findTopByUserIdOrderByCreatedAtDesc(String userId);
+    Optional<OtpCode> findByEmailAndOtpType(String email, OtpCode.OtpType otpType);
     void deleteByUserId(String userId);
 }
