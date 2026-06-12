@@ -10,6 +10,7 @@ import org.springframework.security.config.annotation.method.configuration.Enabl
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.annotation.web.configuration.EnableWebSecurity;
 import org.springframework.security.config.annotation.web.configurers.AbstractHttpConfigurer;
+import org.springframework.http.HttpMethod;
 import org.springframework.security.config.http.SessionCreationPolicy;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.security.crypto.password.PasswordEncoder;
@@ -60,6 +61,9 @@ public class SecurityConfig {
                     "/oauth2/**",
                     "/api/auth/oauth2/**"           // OAuthInitiateController (signup avec rôle, google/facebook)
                 ).permitAll()
+                // ── Catalogue & recherche publics (Epic B) — lecture seule ──
+                // (POST/PATCH/DELETE catégories & services restent ADMIN via @PreAuthorize)
+                .requestMatchers(HttpMethod.GET, "/api/categories/**", "/api/search").permitAll()
                 // ── Tout le reste requiert une authentification ─────────
                 .anyRequest().authenticated()
             )

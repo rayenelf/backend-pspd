@@ -1,9 +1,12 @@
 package com.pspd.backend.user.domain;
 
+import com.pspd.backend.catalog.domain.Service;
 import jakarta.persistence.*;
 import lombok.*;
 
 import java.math.BigDecimal;
+import java.util.HashSet;
+import java.util.Set;
 
 @Entity
 @Table(name = "prestataires")
@@ -51,4 +54,13 @@ public class Prestataire {
 
     @Column(length = 120)
     private String langues;
+
+    /** Services proposés par le prestataire (table de liaison N-N — Epic B). */
+    @ManyToMany(fetch = FetchType.LAZY)
+    @JoinTable(
+        name = "prestataire_services",
+        joinColumns        = @JoinColumn(name = "prestataire_id"),
+        inverseJoinColumns = @JoinColumn(name = "service_id"))
+    @Builder.Default
+    private Set<Service> services = new HashSet<>();
 }
