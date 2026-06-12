@@ -57,6 +57,44 @@ public final class EmailTemplates {
         return wrap("Votre code de connexion", body);
     }
 
+    /** Email de réinitialisation de mot de passe (lien). */
+    public static String passwordReset(String prenom, String link) {
+        String body = """
+            <p style="margin:0 0 16px;font-size:16px;color:%s;">Bonjour %s,</p>
+            <p style="margin:0 0 24px;font-size:15px;line-height:1.6;color:%s;">
+              Vous avez demandé à réinitialiser votre mot de passe. Cliquez sur le bouton
+              ci-dessous pour en définir un nouveau.
+            </p>
+            %s
+            <p style="margin:24px 0 0;font-size:13px;line-height:1.6;color:%s;">
+              Ce lien est valable <strong>1 heure</strong>. Si le bouton ne fonctionne pas,
+              copiez ce lien dans votre navigateur :<br>
+              <a href="%s" style="color:%s;word-break:break-all;">%s</a>
+            </p>
+            <p style="margin:16px 0 0;font-size:13px;color:%s;">
+              Si vous n'êtes pas à l'origine de cette demande, ignorez ce message :
+              votre mot de passe reste inchangé.
+            </p>
+            """.formatted(TEXT, esc(prenom), MUTED, button("Réinitialiser mon mot de passe", link),
+                          MUTED, link, PRIMARY, link, MUTED);
+        return wrap("Réinitialisation de mot de passe", body);
+    }
+
+    /** Confirmation : le mot de passe a été changé. */
+    public static String passwordChanged(String prenom) {
+        String body = """
+            <p style="margin:0 0 16px;font-size:16px;color:%s;">Bonjour %s,</p>
+            <p style="margin:0 0 16px;font-size:15px;line-height:1.6;color:%s;">
+              Votre mot de passe Domivo vient d'être modifié. Tous vos appareils ont été déconnectés
+              par sécurité.
+            </p>
+            <p style="margin:0;font-size:13px;line-height:1.6;color:%s;">
+              Si vous n'êtes pas à l'origine de ce changement, contactez-nous immédiatement.
+            </p>
+            """.formatted(TEXT, esc(prenom), MUTED, MUTED);
+        return wrap("Mot de passe modifié", body);
+    }
+
     /** Notification : nouvelle connexion depuis un appareil inconnu. */
     public static String newLogin(String prenom, String device, String ip) {
         String body = """

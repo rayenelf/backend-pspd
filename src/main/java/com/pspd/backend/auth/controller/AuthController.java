@@ -4,6 +4,7 @@ import com.pspd.backend.auth.dto.RegisterRequest;
 import com.pspd.backend.auth.dto.RegisterResponse;
 import com.pspd.backend.auth.service.AuthService;
 import com.pspd.backend.auth.service.EmailVerificationService;
+import com.pspd.backend.auth.service.PasswordResetService;
 import com.pspd.backend.auth.service.TokenBlacklistService;
 import com.pspd.backend.auth.service.SessionService;
 import com.pspd.backend.common.jwt.JwtClaims;
@@ -25,6 +26,7 @@ import com.pspd.backend.auth.dto.LoginResponse;
 import com.pspd.backend.auth.dto.RefreshRequest;
 import com.pspd.backend.auth.dto.VerifyEmailRequest;
 import com.pspd.backend.auth.dto.EmailRequest;
+import com.pspd.backend.auth.dto.ResetPasswordRequest;
 
 @RestController
 @RequestMapping("/api/auth")
@@ -34,6 +36,7 @@ public class AuthController {
 
     private final AuthService authService;
     private final EmailVerificationService emailVerificationService;
+    private final PasswordResetService passwordResetService;
     private final TokenBlacklistService tokenBlacklistService;
     private final SessionService sessionService;
 
@@ -92,6 +95,20 @@ public class AuthController {
     @PostMapping("/resend-verification")
     public ResponseEntity<Void> resendVerification(@Valid @RequestBody EmailRequest req) {
         emailVerificationService.resend(req.email());
+        return ResponseEntity.noContent().build();
+    }
+
+    /** Mot de passe oublié : envoie un lien de réinitialisation (204 quoi qu'il arrive). */
+    @PostMapping("/forgot-password")
+    public ResponseEntity<Void> forgotPassword(@Valid @RequestBody EmailRequest req) {
+        passwordResetService.requestReset(req.email());
+        return ResponseEntity.noContent().build();
+    }
+
+    /** Applique le nouveau mot de passe à partir du lien reçu par email. */
+    @PostMapping("/reset-password")
+    public ResponseEntity<Void> resetPassword(@Valid @RequestBody ResetPasswordRequest req) {
+        passwordResetService.resetPassword(req.token(), req.newPassword());
         return ResponseEntity.noContent().build();
     }
 }
