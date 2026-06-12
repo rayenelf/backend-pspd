@@ -5,13 +5,18 @@ import com.pspd.backend.user.domain.User;
 import com.pspd.backend.user.dto.UpdatePrestataireRequest;
 import com.pspd.backend.user.dto.UpdateUserRequest;
 import com.pspd.backend.user.dto.UserResponse;
+import com.pspd.backend.user.domain.StatutCompte;
 import com.pspd.backend.user.repository.PrestataireRepository;
 import com.pspd.backend.user.repository.UserRepository;
+import com.pspd.backend.auth.service.SessionService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
+import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.server.ResponseStatusException;
+
+import java.util.UUID;
 
 @Service
 @RequiredArgsConstructor
@@ -19,6 +24,8 @@ public class UserService {
 
     private final UserRepository userRepository;
     private final PrestataireRepository prestataireRepository;
+    private final PasswordEncoder passwordEncoder;
+    private final SessionService sessionService;
 
     @Transactional(readOnly = true)
     public UserResponse getByEmail(String email) {
@@ -47,6 +54,38 @@ public class UserService {
         if (req.rayonKm()            != null) p.setRayonKm(req.rayonKm());
         if (req.langues()            != null) p.setLangues(req.langues());
         prestataireRepository.save(p);
+    }
+
+    /**
+     * Suppression de compte (RGPD — droit à l'effacement, #6).
+     * Anonymise les données personnelles, passe le compte en SUPPRIME, et révoque
+     * toutes les sessions. Soft-delete : on conserve la ligne pour l'intégrité
+     * référentielle (réservations, factures…), sans données personnelles.
+     *
+     * @param password mot de passe actuel (vérifié pour les comptes locaux ; ignoré pour OAuth)
+     */
+    @Transactional
+    public void deleteAccount(String email, String password) {
+        User user = findUser(email);
+
+        // Compte local → on exige le mot de passe. Compte OAuth (pas de hash) → pas de vérif.
+        if (user.getMotDePasseHash() != null) {
+            if (password == null || !passwordEncoder.matches(password, user.getMotDePasseHash())) {
+                throw new ResponseStatusException(HttpStatus.FORBIDDEN, "Mot de passe incorrect");
+            }
+        }
+
+        String anon = "deleted-" + UUID.randomUUID() + "@deleted.local";
+        user.setEmail(anon);
+        user.setNom(null);
+        user.setPrenom(null);
+        user.setTelephone("deleted");
+        user.setMotDePasseHash(null);
+        user.setDoubleAuthActive(false);
+        user.setStatutCompte(StatutCompte.SUPPRIME);
+        userRepository.save(user);
+
+        sessionService.revokeAll(user.getId(), null); // déconnecte tous les appareils
     }
 
     private User findUser(String email) {

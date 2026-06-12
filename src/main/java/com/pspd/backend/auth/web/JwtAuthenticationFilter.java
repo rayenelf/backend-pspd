@@ -1,6 +1,9 @@
 package com.pspd.backend.auth.web;
 
+import com.pspd.backend.auth.service.SessionService;
+import com.pspd.backend.auth.service.TokenBlacklistService;
 import com.pspd.backend.auth.service.TokenService;
+import com.pspd.backend.common.jwt.JwtClaims;
 import com.pspd.backend.user.domain.User;
 import com.pspd.backend.user.repository.UserRepository;
 import jakarta.servlet.FilterChain;
@@ -32,8 +35,10 @@ import java.util.Optional;
 @RequiredArgsConstructor
 public class JwtAuthenticationFilter extends OncePerRequestFilter {
 
-    private final TokenService   tokenService;
-    private final UserRepository userRepository;
+    private final TokenService          tokenService;
+    private final UserRepository        userRepository;
+    private final TokenBlacklistService tokenBlacklistService;
+    private final SessionService        sessionService;
 
     @Override
     protected void doFilterInternal(@NonNull HttpServletRequest request,
@@ -48,11 +53,17 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
 
             String token = header.substring(7);
 
-            if (tokenService.isValid(token)) {
+            // sid présent → la session doit exister dans Redis (sinon révoquée).
+            String sid = JwtClaims.getString(token, "sid");
+            boolean sessionOk = (sid == null) || sessionService.exists(sid);
+
+            if (sessionOk && tokenService.isValid(token) && !tokenBlacklistService.isBlacklisted(token)) {
                 String email = tokenService.extractEmail(token);
                 Optional<User> userOpt = (email != null)
                         ? userRepository.findByEmail(email)
                         : Optional.empty();
+
+                if (sid != null) sessionService.touch(sid);
 
                 userOpt.ifPresent(user -> {
                     var authorities = List.of(

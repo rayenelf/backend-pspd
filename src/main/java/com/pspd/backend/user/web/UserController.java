@@ -1,5 +1,6 @@
 package com.pspd.backend.user.web;
 
+import com.pspd.backend.user.dto.DeleteAccountRequest;
 import com.pspd.backend.user.dto.UpdateUserRequest;
 import com.pspd.backend.user.dto.UserResponse;
 import com.pspd.backend.user.service.UserService;
@@ -32,5 +33,15 @@ public class UserController {
         if (authentication == null || !authentication.isAuthenticated())
             return ResponseEntity.status(401).build();
         return ResponseEntity.ok(userService.updateUser(authentication.getName(), req));
+    }
+
+    /** Suppression de compte (RGPD, #6) : anonymise + révoque toutes les sessions. */
+    @DeleteMapping("/me")
+    public ResponseEntity<Void> deleteMe(
+            @RequestBody(required = false) DeleteAccountRequest req,
+            Authentication authentication) {
+        String password = req != null ? req.password() : null;
+        userService.deleteAccount(authentication.getName(), password);
+        return ResponseEntity.noContent().build();
     }
 }

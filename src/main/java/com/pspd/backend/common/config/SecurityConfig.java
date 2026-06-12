@@ -2,6 +2,7 @@ package com.pspd.backend.common.config;
 
 import com.pspd.backend.auth.web.JwtAuthenticationFilter;
 import com.pspd.backend.auth.web.OAuth2SuccessHandler;
+import com.pspd.backend.common.error.RestAuthenticationEntryPoint;
 import lombok.RequiredArgsConstructor;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
@@ -26,8 +27,9 @@ import java.util.List;
 @RequiredArgsConstructor
 public class SecurityConfig {
 
-    private final OAuth2SuccessHandler    oauth2SuccessHandler;   // B8 (Majd)
-    private final JwtAuthenticationFilter jwtAuthenticationFilter; // B5
+    private final OAuth2SuccessHandler         oauth2SuccessHandler;    // B8 (Majd)
+    private final JwtAuthenticationFilter      jwtAuthenticationFilter; // B5
+    private final RestAuthenticationEntryPoint restAuthenticationEntryPoint;
 
     @Bean
     public SecurityFilterChain filterChain(HttpSecurity http) throws Exception {
@@ -46,13 +48,15 @@ public class SecurityConfig {
                     "/api/auth/login",
                     "/api/auth/2fa/send",    // envoi OTP (login flow + renvoi)
                     "/api/auth/2fa/verify",  // vérification OTP → tokens
-                    "/api/auth/refresh"
+                    "/api/auth/refresh",
+                    "/api/auth/verify-email",        // vérification d'email
+                    "/api/auth/resend-verification"  // renvoi du lien
                 ).permitAll()
                 // ── Callbacks OAuth2 + initiation avec rôle ────────────
                 .requestMatchers(
                     "/login/oauth2/code/**",
                     "/oauth2/**",
-                    "/api/auth/oauth2/google"       // OAuthInitiateController (signup avec rôle)
+                    "/api/auth/oauth2/**"           // OAuthInitiateController (signup avec rôle, google/facebook)
                 ).permitAll()
                 // ── Tout le reste requiert une authentification ─────────
                 .anyRequest().authenticated()
@@ -61,6 +65,8 @@ public class SecurityConfig {
             .oauth2Login(oauth2 -> oauth2
                 .successHandler(oauth2SuccessHandler)
             )
+            // ── API : 401 JSON au lieu d'une redirection 302 vers le login OAuth ──
+            .exceptionHandling(ex -> ex.authenticationEntryPoint(restAuthenticationEntryPoint))
             // ── B5 : filtre JWT avant l'authentification par formulaire ──
             .addFilterBefore(jwtAuthenticationFilter, UsernamePasswordAuthenticationFilter.class);
 

@@ -47,6 +47,10 @@ public class User {
     @Builder.Default
     private boolean doubleAuthActive = false;
 
+    @Column(name = "email_verifie", nullable = false)
+    @Builder.Default
+    private boolean emailVerifie = false;
+
     @Column(name = "cree_le", nullable = false, updatable = false)
     private LocalDateTime creeLe;
 

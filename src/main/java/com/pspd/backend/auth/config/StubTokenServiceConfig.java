@@ -42,6 +42,11 @@ public class StubTokenServiceConfig {
 
             @Override
             public String generateAccessToken(User user) {
+                return generateAccessToken(user, java.util.Map.of());
+            }
+
+            @Override
+            public String generateAccessToken(User user, java.util.Map<String, Object> extraClaims) {
                 long exp = System.currentTimeMillis() / 1000 + accessMinutes * 60;
                 // HashMap pour autoriser les valeurs null (prenom/nom peuvent être null)
                 java.util.Map<String, Object> claims = new java.util.HashMap<>();
@@ -52,17 +57,24 @@ public class StubTokenServiceConfig {
                 claims.put("prenom",    user.getPrenom());
                 claims.put("nom",       user.getNom());
                 claims.put("telephone", user.getTelephone());
+                if (extraClaims != null) claims.putAll(extraClaims);
                 return buildJwt(claims);
             }
 
             @Override
             public String generateRefreshToken(User user) {
+                return generateRefreshToken(user, java.util.Map.of());
+            }
+
+            @Override
+            public String generateRefreshToken(User user, java.util.Map<String, Object> extraClaims) {
                 long exp = System.currentTimeMillis() / 1000 + refreshDays * 24 * 3600;
-                return buildJwt(Map.of(
-                        "sub", user.getEmail(),
-                        "type", "refresh",
-                        "exp", exp
-                ));
+                java.util.Map<String, Object> claims = new java.util.HashMap<>();
+                claims.put("sub",  user.getEmail());
+                claims.put("type", "refresh");
+                claims.put("exp",  exp);
+                if (extraClaims != null) claims.putAll(extraClaims);
+                return buildJwt(claims);
             }
 
             @Override

@@ -1,12 +1,17 @@
 package com.pspd.backend.auth.web;
 
+import com.pspd.backend.common.web.RequestUtils;
 import com.pspd.backend.auth.dto.*;
+import com.pspd.backend.auth.service.DeviceTrustService;
+import com.pspd.backend.auth.service.SecurityNotificationService;
+import com.pspd.backend.auth.service.SessionService;
 import com.pspd.backend.auth.service.TwoFactorService;
 import com.pspd.backend.auth.service.TwoFactorService.VerifyResult;
 import com.pspd.backend.auth.service.TokenService;
 import com.pspd.backend.common.error.ApiException;
 import com.pspd.backend.user.domain.User;
 import com.pspd.backend.user.repository.UserRepository;
+import jakarta.servlet.http.HttpServletRequest;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -16,6 +21,7 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.*;
 
+import java.util.Map;
 import java.util.Optional;
 
 @RestController
@@ -23,17 +29,19 @@ import java.util.Optional;
 @Slf4j
 public class TwoFactorController {
 
-    private final TwoFactorService twoFactorService;
-    private final UserRepository   userRepository;
-    private final TokenService     tokenService;
+    private final TwoFactorService            twoFactorService;
+    private final UserRepository              userRepository;
+    private final TokenService                tokenService;
+    private final SessionService              sessionService;
+    private final DeviceTrustService          deviceTrustService;
+    private final SecurityNotificationService securityNotificationService;
 
     @Value("${app.jwt.access-token-minutes:15}")
     private long accessTokenMinutes;
 
     /**
      * POST /api/auth/2fa/send — envoie (ou renvoie) un OTP à l'utilisateur.
-     * Endpoint public — utilisé lors du login si 2FA active, et pour "Renvoyer".
-     * Retourne toujours 200 pour ne pas révéler l'existence d'un compte.
+     * Endpoint public. Retourne toujours 200 pour ne pas révéler l'existence d'un compte.
      */
     @PostMapping("/api/auth/2fa/send")
     public ResponseEntity<Void> sendOtp(@Valid @RequestBody SendOtpRequest req) {
@@ -44,22 +52,33 @@ public class TwoFactorController {
     }
 
     /**
-     * POST /api/auth/2fa/verify — valide le code OTP et renvoie les tokens JWT.
-     * Endpoint public (avant authentification complète).
+     * POST /api/auth/2fa/verify — valide le code OTP, crée une session et renvoie les tokens.
+     * Si rememberDevice=true, renvoie aussi un device-token (skip 2FA 30 j sur cet appareil).
      */
     @PostMapping("/api/auth/2fa/verify")
-    public ResponseEntity<AuthResponse> verifyOtp(@Valid @RequestBody Verify2faRequest req) {
+    public ResponseEntity<AuthResponse> verifyOtp(@Valid @RequestBody Verify2faRequest req,
+                                                  HttpServletRequest request) {
         VerifyResult result = twoFactorService.verify(req.email(), req.code());
 
         return switch (result.status()) {
             case SUCCESS -> {
                 User user = result.user();
-                log.info("[AUDIT] 2FA vérifiée avec succès pour userId={}", user.getId());
+                String device = request.getHeader("User-Agent");
+                String ip = RequestUtils.clientIp(request);
+
+                String sid = sessionService.createSession(user.getId(), device, ip);
+                securityNotificationService.notifyIfNewDevice(user, device, ip);
+                Map<String, Object> claims = Map.of("sid", sid);
+
+                String deviceToken = req.rememberDevice() ? deviceTrustService.trust(user.getId()) : null;
+                log.info("[AUDIT] 2FA vérifiée pour userId={} (rememberDevice={})", user.getId(), req.rememberDevice());
+
                 yield ResponseEntity.ok(new AuthResponse(
-                    tokenService.generateAccessToken(user),
-                    tokenService.generateRefreshToken(user),
+                    tokenService.generateAccessToken(user, claims),
+                    tokenService.generateRefreshToken(user, claims),
                     accessTokenMinutes * 60,
-                    user.getRole().name()
+                    user.getRole().name(),
+                    deviceToken
                 ));
             }
             case EXPIRED           -> throw ApiException.badRequest(
@@ -74,10 +93,7 @@ public class TwoFactorController {
         };
     }
 
-    /**
-     * POST /api/users/me/2fa — active ou désactive la 2FA pour l'utilisateur connecté.
-     * Endpoint protégé (disponible après B5 — JwtAuthenticationFilter du collègue).
-     */
+    /** POST /api/users/me/2fa — active/désactive la 2FA + notifie par email (#5). */
     @PostMapping("/api/users/me/2fa")
     public ResponseEntity<Void> toggle2fa(
             @RequestBody Toggle2faRequest req,
@@ -86,6 +102,7 @@ public class TwoFactorController {
         userRepository.findByEmail(email).ifPresent(user -> {
             user.setDoubleAuthActive(req.active());
             userRepository.save(user);
+            securityNotificationService.notify2faChanged(user, req.active());
             log.info("[AUDIT] 2FA {} pour userId={}", req.active() ? "activée" : "désactivée", user.getId());
         });
         return ResponseEntity.noContent().build();
