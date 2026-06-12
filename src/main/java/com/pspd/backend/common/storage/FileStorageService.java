@@ -2,11 +2,14 @@ package com.pspd.backend.common.storage;
 
 import com.pspd.backend.common.error.ApiException;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.core.io.Resource;
+import org.springframework.core.io.UrlResource;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.web.multipart.MultipartFile;
 
 import java.io.IOException;
+import java.net.MalformedURLException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
@@ -64,5 +67,42 @@ public class FileStorageService {
         }
 
         return "/uploads/" + filename;
+    }
+
+    /**
+     * Charge un document stocké à partir de son chemin relatif (ex. {@code /uploads/xxx.pdf}).
+     * Sécurisé contre le path traversal : seul le nom de fichier est conservé.
+     * Utilisé par l'admin pour consulter les documents légaux (B9).
+     */
+    public Resource loadAsResource(String storedPath) {
+        Path file = resolveSafe(storedPath);
+        try {
+            Resource resource = new UrlResource(file.toUri());
+            if (!resource.exists() || !resource.isReadable()) {
+                throw ApiException.notFound("Fichier introuvable.");
+            }
+            return resource;
+        } catch (MalformedURLException e) {
+            throw ApiException.notFound("Fichier introuvable.");
+        }
+    }
+
+    /** Type MIME du document (pour l'affichage inline côté admin). */
+    public String contentTypeOf(String storedPath) {
+        try {
+            String ct = Files.probeContentType(resolveSafe(storedPath));
+            return ct != null ? ct : "application/octet-stream";
+        } catch (IOException e) {
+            return "application/octet-stream";
+        }
+    }
+
+    private Path resolveSafe(String storedPath) {
+        String filename = Paths.get(storedPath).getFileName().toString();
+        Path file = root.resolve(filename).normalize();
+        if (!file.startsWith(root)) {
+            throw new ApiException(HttpStatus.BAD_REQUEST, "FILE_INVALID", "Chemin de fichier invalide.");
+        }
+        return file;
     }
 }

@@ -130,6 +130,43 @@ public final class EmailTemplates {
         return wrap("Double authentification " + etat, body);
     }
 
+    /** Notification : le dossier prestataire a été validé par l'admin (B9). */
+    public static String prestataireValide(String prenom) {
+        String body = """
+            <p style="margin:0 0 16px;font-size:16px;color:%s;">Bonjour %s,</p>
+            <p style="margin:0 0 16px;font-size:15px;line-height:1.6;color:%s;">
+              Bonne nouvelle ! Votre dossier prestataire a été <strong>validé</strong> par notre équipe.
+              Votre profil est désormais visible par les clients et vous pouvez recevoir des demandes.
+            </p>
+            <p style="margin:0;font-size:13px;line-height:1.6;color:%s;">
+              Complétez votre profil et vos disponibilités depuis votre espace pour maximiser
+              votre visibilité.
+            </p>
+            """.formatted(TEXT, esc(prenom), MUTED, MUTED);
+        return wrap("Votre compte prestataire est validé 🎉", body);
+    }
+
+    /** Notification : le dossier prestataire a été refusé / suspendu (B9). */
+    public static String prestataireRejete(String prenom, String motif) {
+        String motifBloc = (motif == null || motif.isBlank()) ? "" : """
+            <div style="margin:0 0 24px;background:#fef2f2;border:1px solid #fecaca;border-radius:12px;padding:16px;">
+              <p style="margin:0;font-size:14px;color:%s;"><strong>Motif :</strong> %s</p>
+            </div>
+            """.formatted(TEXT, esc(motif));
+        String body = """
+            <p style="margin:0 0 16px;font-size:16px;color:%s;">Bonjour %s,</p>
+            <p style="margin:0 0 16px;font-size:15px;line-height:1.6;color:%s;">
+              Après examen, votre dossier prestataire n'a pas pu être validé en l'état.
+            </p>
+            %s
+            <p style="margin:0;font-size:13px;line-height:1.6;color:%s;">
+              Vous pouvez mettre à jour vos documents depuis votre espace puis soumettre à nouveau
+              votre dossier. Notre équipe reste disponible pour vous accompagner.
+            </p>
+            """.formatted(TEXT, esc(prenom), MUTED, motifBloc, MUTED);
+        return wrap("Votre dossier prestataire nécessite une révision", body);
+    }
+
     // ── Helpers ──────────────────────────────────────────────────────────────
 
     private static String button(String label, String href) {
