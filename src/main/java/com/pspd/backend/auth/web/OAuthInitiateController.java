@@ -3,11 +3,13 @@ package com.pspd.backend.auth.web;
 import jakarta.servlet.http.HttpServletResponse;
 import jakarta.servlet.http.HttpSession;
 import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 import java.io.IOException;
+import java.util.Set;
 
 /**
  * Endpoint d'initiation OAuth2 avec rôle pré-sélectionné.
@@ -25,17 +27,25 @@ import java.io.IOException;
 public class OAuthInitiateController {
 
     public static final String SESSION_KEY_PENDING_ROLE = "oauth2_pending_role";
+    private static final Set<String> SUPPORTED = Set.of("google", "facebook");
 
-    @GetMapping("/google")
-    public void initiateGoogleAuth(
+    @GetMapping("/{provider}")
+    public void initiate(
+            @PathVariable String provider,
             @RequestParam(defaultValue = "CLIENT") String role,
             HttpSession session,
             HttpServletResponse response) throws IOException {
+
+        String p = provider.toLowerCase();
+        if (!SUPPORTED.contains(p)) {
+            response.sendError(HttpServletResponse.SC_BAD_REQUEST, "Provider OAuth non supporté");
+            return;
+        }
 
         // Accepter uniquement les rôles valides côté signup
         String validatedRole = "PRESTATAIRE".equalsIgnoreCase(role) ? "PRESTATAIRE" : "CLIENT";
         session.setAttribute(SESSION_KEY_PENDING_ROLE, validatedRole);
 
-        response.sendRedirect("/oauth2/authorization/google");
+        response.sendRedirect("/oauth2/authorization/" + p);
     }
 }

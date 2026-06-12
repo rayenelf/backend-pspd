@@ -21,6 +21,8 @@ import java.util.Optional;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyMap;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.*;
 
 @ExtendWith(MockitoExtension.class)
@@ -34,8 +36,16 @@ class AuthServiceTest {
     @Mock TwoFactorService      twoFactorService;
     @Mock EmailVerificationService emailVerificationService;
     @Mock TokenBlacklistService tokenBlacklistService;
+    @Mock SessionService        sessionService;
+    @Mock DeviceTrustService    deviceTrustService;
+    @Mock SecurityNotificationService securityNotificationService;
 
     @InjectMocks AuthService service;
+
+    // Petit helper : login sans device/ip ni device-token.
+    private LoginResponse login(String email, String password) {
+        return service.authenticate(new LoginRequest(email, password), "device", "ip", null);
+    }
 
     // ── Inscription ───────────────────────────────────────────────────────────
 
@@ -76,7 +86,7 @@ class AuthServiceTest {
         when(userRepository.findByEmail("majd@example.com")).thenReturn(Optional.of(user));
         when(passwordEncoder.matches("wrong", "HASH")).thenReturn(false);
 
-        assertThatThrownBy(() -> service.authenticate(new LoginRequest("majd@example.com", "wrong")))
+        assertThatThrownBy(() -> login("majd@example.com", "wrong"))
                 .isInstanceOf(ResponseStatusException.class)
                 .hasMessageContaining("Identifiants invalides");
     }
@@ -88,7 +98,7 @@ class AuthServiceTest {
         when(userRepository.findByEmail("majd@example.com")).thenReturn(Optional.of(user));
         when(passwordEncoder.matches("password123", "HASH")).thenReturn(true);
 
-        assertThatThrownBy(() -> service.authenticate(new LoginRequest("majd@example.com", "password123")))
+        assertThatThrownBy(() -> login("majd@example.com", "password123"))
                 .isInstanceOf(ResponseStatusException.class)
                 .hasMessageContaining("EMAIL_NOT_VERIFIED");
     }
@@ -99,10 +109,11 @@ class AuthServiceTest {
                 .motDePasseHash("HASH").role(Role.CLIENT).emailVerifie(true).build();
         when(userRepository.findByEmail("majd@example.com")).thenReturn(Optional.of(user));
         when(passwordEncoder.matches("password123", "HASH")).thenReturn(true);
-        when(tokenService.generateAccessToken(user)).thenReturn("ACCESS");
-        when(tokenService.generateRefreshToken(user)).thenReturn("REFRESH");
+        when(sessionService.createSession(eq("u1"), any(), any())).thenReturn("sid-1");
+        when(tokenService.generateAccessToken(eq(user), anyMap())).thenReturn("ACCESS");
+        when(tokenService.generateRefreshToken(eq(user), anyMap())).thenReturn("REFRESH");
 
-        LoginResponse resp = service.authenticate(new LoginRequest("majd@example.com", "password123"));
+        LoginResponse resp = login("majd@example.com", "password123");
 
         assertThat(resp.isTwoFactorRequired()).isFalse();
         assertThat(resp.getAccessToken()).isEqualTo("ACCESS");
@@ -116,13 +127,33 @@ class AuthServiceTest {
                 .motDePasseHash("HASH").role(Role.CLIENT).emailVerifie(true).doubleAuthActive(true).build();
         when(userRepository.findByEmail("majd@example.com")).thenReturn(Optional.of(user));
         when(passwordEncoder.matches("password123", "HASH")).thenReturn(true);
+        // appareil non « de confiance » → deviceTrustService.isTrusted renvoie false (défaut)
 
-        LoginResponse resp = service.authenticate(new LoginRequest("majd@example.com", "password123"));
+        LoginResponse resp = login("majd@example.com", "password123");
 
         assertThat(resp.isTwoFactorRequired()).isTrue();
         assertThat(resp.getAccessToken()).isNull();
         verify(twoFactorService).generateAndSendOtp(user);
         verify(tokenService, never()).generateAccessToken(any());
+    }
+
+    @Test
+    void login_2fa_active_mais_appareil_de_confiance_saute_le_challenge() {
+        User user = User.builder().id("u1").email("majd@example.com")
+                .motDePasseHash("HASH").role(Role.CLIENT).emailVerifie(true).doubleAuthActive(true).build();
+        when(userRepository.findByEmail("majd@example.com")).thenReturn(Optional.of(user));
+        when(passwordEncoder.matches("password123", "HASH")).thenReturn(true);
+        when(deviceTrustService.isTrusted("u1", "dev-token")).thenReturn(true);
+        when(sessionService.createSession(eq("u1"), any(), any())).thenReturn("sid-1");
+        when(tokenService.generateAccessToken(eq(user), anyMap())).thenReturn("ACCESS");
+        when(tokenService.generateRefreshToken(eq(user), anyMap())).thenReturn("REFRESH");
+
+        LoginResponse resp = service.authenticate(
+                new LoginRequest("majd@example.com", "password123"), "device", "ip", "dev-token");
+
+        assertThat(resp.isTwoFactorRequired()).isFalse();
+        assertThat(resp.getAccessToken()).isEqualTo("ACCESS");
+        verify(twoFactorService, never()).generateAndSendOtp(any());
     }
 
     // ── Refresh ───────────────────────────────────────────────────────────────
@@ -142,8 +173,8 @@ class AuthServiceTest {
         when(tokenService.isValid("good")).thenReturn(true);
         when(tokenService.extractEmail("good")).thenReturn("majd@example.com");
         when(userRepository.findByEmail("majd@example.com")).thenReturn(Optional.of(user));
-        when(tokenService.generateAccessToken(user)).thenReturn("NEW_ACCESS");
-        when(tokenService.generateRefreshToken(user)).thenReturn("NEW_REFRESH");
+        when(tokenService.generateAccessToken(eq(user), anyMap())).thenReturn("NEW_ACCESS");
+        when(tokenService.generateRefreshToken(eq(user), anyMap())).thenReturn("NEW_REFRESH");
 
         LoginResponse resp = service.refresh("good");
 

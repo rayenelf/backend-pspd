@@ -6,11 +6,13 @@ import com.pspd.backend.user.domain.*;
 import com.pspd.backend.user.repository.ClientRepository;
 import com.pspd.backend.user.repository.PrestataireRepository;
 import com.pspd.backend.user.repository.UserRepository;
+import com.pspd.backend.common.jwt.JwtClaims;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.web.server.ResponseStatusException;
+import java.util.Map;
 import java.util.Optional;
 
 import com.pspd.backend.auth.dto.LoginRequest;
@@ -28,6 +30,9 @@ public class AuthService {
     private final TwoFactorService twoFactorService;
     private final EmailVerificationService emailVerificationService;
     private final TokenBlacklistService tokenBlacklistService;
+    private final SessionService sessionService;
+    private final DeviceTrustService deviceTrustService;
+    private final SecurityNotificationService securityNotificationService;
 
     public RegisterResponse register(RegisterRequest req) {
         if (req.getEmail() == null || req.getEmail().isBlank()) {
@@ -75,7 +80,7 @@ public class AuthService {
         return new RegisterResponse(user.getId(), user.getEmail(), user.getRole().name(), user.getStatutCompte().name());
     }
 
-    public LoginResponse authenticate(LoginRequest req) {
+    public LoginResponse authenticate(LoginRequest req, String device, String ip, String deviceToken) {
         if (req.getEmail() == null || req.getEmail().isBlank()) {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Email requis");
         }
@@ -96,24 +101,34 @@ public class AuthService {
             throw new ResponseStatusException(HttpStatus.FORBIDDEN, "EMAIL_NOT_VERIFIED");
         }
 
-        // 2FA active → on envoie un OTP et on renvoie un challenge (pas de token).
-        if (user.isDoubleAuthActive()) {
+        // 2FA active ET appareil non « de confiance » → challenge OTP.
+        if (user.isDoubleAuthActive() && !deviceTrustService.isTrusted(user.getId(), deviceToken)) {
             twoFactorService.generateAndSendOtp(user);
             return LoginResponse.twoFactorChallenge(user.getEmail());
         }
 
-        // JWT signé via TokenService (stub en dev, TokenServiceImpl du collègue ensuite).
-        // Le front décode ce token pour lire role/uid/prenom… — un UUID ne fonctionnerait pas.
+        return issueSession(user, device, ip);
+    }
+
+    /**
+     * Crée une session (sid), émet les tokens portant ce sid, et notifie en cas
+     * de nouvel appareil. Réutilisé par le login direct et la vérification 2FA.
+     */
+    public LoginResponse issueSession(User user, String device, String ip) {
+        String sid = sessionService.createSession(user.getId(), device, ip);
+        securityNotificationService.notifyIfNewDevice(user, device, ip);
+
+        Map<String, Object> claims = Map.of("sid", sid);
         return new LoginResponse(
                 user.getId(), user.getEmail(), user.getRole().name(), user.getStatutCompte().name(),
-                tokenService.generateAccessToken(user),
-                tokenService.generateRefreshToken(user),
+                tokenService.generateAccessToken(user, claims),
+                tokenService.generateRefreshToken(user, claims),
                 false);
     }
 
     /**
-     * Rafraîchit l'access token à partir d'un refresh token valide (B6 / bug #5).
-     * Rotation : émet un nouveau couple access + refresh.
+     * Rafraîchit l'access token à partir d'un refresh token valide (#5).
+     * Conserve le même sid de session (vérifie qu'elle n'a pas été révoquée).
      */
     public LoginResponse refresh(String refreshToken) {
         if (refreshToken == null || !tokenService.isValid(refreshToken)
@@ -121,14 +136,22 @@ public class AuthService {
             throw new ResponseStatusException(HttpStatus.UNAUTHORIZED, "Refresh token invalide ou expiré");
         }
 
+        String sid = JwtClaims.getString(refreshToken, "sid");
+        if (sid != null && !sessionService.exists(sid)) {
+            throw new ResponseStatusException(HttpStatus.UNAUTHORIZED, "Session révoquée");
+        }
+
         String email = tokenService.extractEmail(refreshToken);
         User user = userRepository.findByEmail(email)
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.UNAUTHORIZED, "Utilisateur introuvable"));
 
+        if (sid != null) sessionService.touch(sid);
+
+        Map<String, Object> claims = sid != null ? Map.of("sid", sid) : Map.of();
         return new LoginResponse(
                 user.getId(), user.getEmail(), user.getRole().name(), user.getStatutCompte().name(),
-                tokenService.generateAccessToken(user),
-                tokenService.generateRefreshToken(user),
+                tokenService.generateAccessToken(user, claims),
+                tokenService.generateRefreshToken(user, claims),
                 false);
     }
 }

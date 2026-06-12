@@ -1,6 +1,9 @@
 package com.pspd.backend.auth.web;
 
+import com.pspd.backend.common.web.RequestUtils;
 import com.pspd.backend.auth.service.OAuth2UserProvisioningService;
+import com.pspd.backend.auth.service.SecurityNotificationService;
+import com.pspd.backend.auth.service.SessionService;
 import com.pspd.backend.auth.service.TokenService;
 import com.pspd.backend.user.domain.User;
 import jakarta.servlet.ServletException;
@@ -10,12 +13,14 @@ import jakarta.servlet.http.HttpSession;
 import lombok.RequiredArgsConstructor;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.security.core.Authentication;
+import org.springframework.security.oauth2.client.authentication.OAuth2AuthenticationToken;
 import org.springframework.security.oauth2.core.user.OAuth2User;
 import org.springframework.security.web.authentication.AuthenticationSuccessHandler;
 import org.springframework.stereotype.Component;
 import org.springframework.web.util.UriComponentsBuilder;
 
 import java.io.IOException;
+import java.util.Map;
 
 /**
  * Déclenché après une authentification OAuth2 Google réussie.
@@ -30,6 +35,8 @@ public class OAuth2SuccessHandler implements AuthenticationSuccessHandler {
 
     private final OAuth2UserProvisioningService provisioningService;
     private final TokenService tokenService;
+    private final SessionService sessionService;
+    private final SecurityNotificationService securityNotificationService;
 
     @Value("${app.frontend.oauth-redirect}")
     private String frontendRedirect;
@@ -42,9 +49,21 @@ public class OAuth2SuccessHandler implements AuthenticationSuccessHandler {
 
         OAuth2User principal = (OAuth2User) authentication.getPrincipal();
 
-        String email  = principal.getAttribute("email");
-        String prenom = principal.getAttribute("given_name");
-        String nom    = principal.getAttribute("family_name");
+        // Extraction des attributs selon le provider (Google vs Facebook — #7).
+        String registrationId = (authentication instanceof OAuth2AuthenticationToken t)
+                ? t.getAuthorizedClientRegistrationId() : "google";
+
+        String email = principal.getAttribute("email");
+        String prenom, nom;
+        if ("facebook".equals(registrationId)) {
+            String fullName = principal.getAttribute("name");
+            String[] parts = fullName != null ? fullName.trim().split("\\s+", 2) : new String[0];
+            prenom = parts.length > 0 ? parts[0] : null;
+            nom    = parts.length > 1 ? parts[1] : null;
+        } else {
+            prenom = principal.getAttribute("given_name");
+            nom    = principal.getAttribute("family_name");
+        }
 
         // Lire le rôle pré-sélectionné (depuis la page Signup via OAuthInitiateController).
         // Null si l'utilisateur vient de la page Login → findOrCreate défaut CLIENT.
@@ -57,8 +76,15 @@ public class OAuth2SuccessHandler implements AuthenticationSuccessHandler {
 
         User user = provisioningService.findOrCreate(email, prenom, nom, pendingRole);
 
-        String accessToken  = tokenService.generateAccessToken(user);
-        String refreshToken = tokenService.generateRefreshToken(user);
+        // Session liée à l'appareil (auth avancé #3) + notif nouvelle connexion (#5).
+        String device = request.getHeader("User-Agent");
+        String ip = RequestUtils.clientIp(request);
+        String sid = sessionService.createSession(user.getId(), device, ip);
+        securityNotificationService.notifyIfNewDevice(user, device, ip);
+        Map<String, Object> claims = Map.of("sid", sid);
+
+        String accessToken  = tokenService.generateAccessToken(user, claims);
+        String refreshToken = tokenService.generateRefreshToken(user, claims);
 
         String targetUrl = UriComponentsBuilder.fromUriString(frontendRedirect)
                 .queryParam("token", accessToken)

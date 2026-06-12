@@ -5,6 +5,10 @@ import com.pspd.backend.auth.dto.RegisterResponse;
 import com.pspd.backend.auth.service.AuthService;
 import com.pspd.backend.auth.service.EmailVerificationService;
 import com.pspd.backend.auth.service.TokenBlacklistService;
+import com.pspd.backend.auth.service.SessionService;
+import com.pspd.backend.common.jwt.JwtClaims;
+import com.pspd.backend.common.web.RequestUtils;
+import jakarta.servlet.http.HttpServletRequest;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -31,6 +35,7 @@ public class AuthController {
     private final AuthService authService;
     private final EmailVerificationService emailVerificationService;
     private final TokenBlacklistService tokenBlacklistService;
+    private final SessionService sessionService;
 
     @PostMapping("/register")
     public ResponseEntity<RegisterResponse> register(@RequestBody RegisterRequest req) {
@@ -39,9 +44,13 @@ public class AuthController {
     }
 
     @PostMapping("/login")
-    public ResponseEntity<LoginResponse> login(@RequestBody LoginRequest req) {
-        LoginResponse resp = authService.authenticate(req);
-        return ResponseEntity.ok(resp);
+    public ResponseEntity<LoginResponse> login(
+            @RequestBody LoginRequest req,
+            @RequestHeader(value = "X-Device-Token", required = false) String deviceToken,
+            HttpServletRequest request) {
+        String device = request.getHeader("User-Agent");
+        String ip = RequestUtils.clientIp(request);
+        return ResponseEntity.ok(authService.authenticate(req, device, ip, deviceToken));
     }
 
     @PostMapping("/refresh")
@@ -59,7 +68,9 @@ public class AuthController {
             @RequestBody(required = false) RefreshRequest body,
             Authentication authentication) {
         if (authHeader != null && authHeader.startsWith("Bearer ")) {
-            tokenBlacklistService.blacklist(authHeader.substring(7));
+            String access = authHeader.substring(7);
+            tokenBlacklistService.blacklist(access);
+            sessionService.revokeBySid(JwtClaims.getString(access, "sid")); // termine la session
         }
         if (body != null && body.getRefreshToken() != null) {
             tokenBlacklistService.blacklist(body.getRefreshToken());

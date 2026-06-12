@@ -56,7 +56,7 @@ public class SecurityConfig {
                 .requestMatchers(
                     "/login/oauth2/code/**",
                     "/oauth2/**",
-                    "/api/auth/oauth2/google"       // OAuthInitiateController (signup avec rôle)
+                    "/api/auth/oauth2/**"           // OAuthInitiateController (signup avec rôle, google/facebook)
                 ).permitAll()
                 // ── Tout le reste requiert une authentification ─────────
                 .anyRequest().authenticated()
