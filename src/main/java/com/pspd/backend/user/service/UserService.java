@@ -53,6 +53,8 @@ public class UserService {
         if (req.zoneIntervention()   != null) p.setZoneIntervention(req.zoneIntervention());
         if (req.rayonKm()            != null) p.setRayonKm(req.rayonKm());
         if (req.langues()            != null) p.setLangues(req.langues());
+        if (req.latitude()           != null) p.setLatitude(req.latitude());
+        if (req.longitude()          != null) p.setLongitude(req.longitude());
         prestataireRepository.save(p);
     }
 

@@ -20,4 +20,10 @@ public record PageResponse<T>(
             p.getContent(), p.getNumber(), p.getSize(),
             p.getTotalElements(), p.getTotalPages());
     }
+
+    /** Pagination construite à la main (ex. tri/distance calculés en mémoire — B4). */
+    public static <T> PageResponse<T> of(List<T> content, int page, int size, long totalElements) {
+        int totalPages = size > 0 ? (int) Math.ceil((double) totalElements / size) : 0;
+        return new PageResponse<>(content, page, size, totalElements, totalPages);
+    }
 }

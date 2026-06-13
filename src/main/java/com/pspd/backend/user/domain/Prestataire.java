@@ -55,6 +55,13 @@ public class Prestataire {
     @Column(length = 120)
     private String langues;
 
+    /** Coordonnées GPS (B4) — null tant que le prestataire ne les a pas renseignées. */
+    @Column(name = "latitude")
+    private Double latitude;
+
+    @Column(name = "longitude")
+    private Double longitude;
+
     /** Services proposés par le prestataire (table de liaison N-N — Epic B). */
     @ManyToMany(fetch = FetchType.LAZY)
     @JoinTable(

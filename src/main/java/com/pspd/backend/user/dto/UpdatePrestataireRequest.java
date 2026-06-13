@@ -8,5 +8,7 @@ public record UpdatePrestataireRequest(
         @Size(max = 80)  String categoriePrincipale,
         @Size(max = 180) String zoneIntervention,
         Integer rayonKm,
-        @Size(max = 120) String langues
+        @Size(max = 120) String langues,
+        Double latitude,
+        Double longitude
 ) {}

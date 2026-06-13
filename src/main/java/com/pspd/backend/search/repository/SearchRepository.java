@@ -1,5 +1,6 @@
 package com.pspd.backend.search.repository;
 
+import com.pspd.backend.search.dto.SearchGeoRow;
 import com.pspd.backend.search.dto.SearchRow;
 import com.pspd.backend.user.domain.Prestataire;
 import org.springframework.data.domain.Page;
@@ -9,6 +10,7 @@ import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
 import java.math.BigDecimal;
+import java.util.List;
 
 /**
  * Recherche multi-critères des prestataires (B2/B3). Repository dédié au module
@@ -58,4 +60,33 @@ public interface SearchRepository extends JpaRepository<Prestataire, String> {
         @Param("langue")    String langue,
         @Param("tri")       String tri,
         Pageable pageable);
+
+    /**
+     * Recherche géolocalisée (B4) : mêmes filtres, mais uniquement les prestataires
+     * ayant des coordonnées. Pas de pagination ni de tri SQL : la distance, le filtre
+     * par rayon, le tri et la pagination sont appliqués côté service (Haversine en Java).
+     */
+    @Query("""
+        SELECT new com.pspd.backend.search.dto.SearchGeoRow(
+            p.userId, p.nomCommercial, p.categoriePrincipale, p.noteMoyenne,
+            p.certifie, p.langues, p.zoneIntervention, p.rayonKm,
+            MIN(s.prixIndicatif), p.latitude, p.longitude)
+        FROM Prestataire p JOIN p.services s
+        WHERE p.statutValidation = com.pspd.backend.user.domain.StatutValidation.VALIDE
+          AND s.actif = true
+          AND p.latitude IS NOT NULL AND p.longitude IS NOT NULL
+          AND (:serviceId IS NULL OR s.id = :serviceId)
+          AND (:prixMax   IS NULL OR s.prixIndicatif <= :prixMax)
+          AND (:noteMin   IS NULL OR p.noteMoyenne >= :noteMin)
+          AND (:certifie  IS NULL OR p.certifie = :certifie)
+          AND (:langue    IS NULL OR LOWER(p.langues) LIKE LOWER(CONCAT('%', :langue, '%')))
+        GROUP BY p.userId, p.nomCommercial, p.categoriePrincipale, p.noteMoyenne,
+                 p.certifie, p.langues, p.zoneIntervention, p.rayonKm, p.latitude, p.longitude
+        """)
+    List<SearchGeoRow> searchGeo(
+        @Param("serviceId") String serviceId,
+        @Param("prixMax")   BigDecimal prixMax,
+        @Param("noteMin")   BigDecimal noteMin,
+        @Param("certifie")  Boolean certifie,
+        @Param("langue")    String langue);
 }

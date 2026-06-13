@@ -27,4 +27,13 @@ public record SearchResult(
             r.rayonKm(), r.prixIndicatif(),
             null, null);
     }
+
+    /** Variante géolocalisée (B4) : ajoute la distance (km) et l'ETA (min) calculés. */
+    public static SearchResult withGeo(SearchGeoRow r, double distanceKm, int etaMin) {
+        return new SearchResult(
+            r.prestataireId(), r.nomCommercial(), r.categoriePrincipale(),
+            r.note(), r.certifie(), r.langues(), r.zoneIntervention(),
+            r.rayonKm(), r.prixIndicatif(),
+            distanceKm, etaMin);
+    }
 }

@@ -30,8 +30,12 @@ public class SearchController {
             @RequestParam(required = false) String langue,
             @RequestParam(required = false, defaultValue = "mieuxNote") String tri,
             @RequestParam(required = false, defaultValue = "0") int page,
-            @RequestParam(required = false, defaultValue = "20") int size) {
+            @RequestParam(required = false, defaultValue = "20") int size,
+            // B4 — géolocalisation (optionnel). lat+lng → distance/ETA + tri proche/plusRapide.
+            @RequestParam(required = false) Double lat,
+            @RequestParam(required = false) Double lng,
+            @RequestParam(required = false) Double rayon) {
 
-        return searchService.search(service, prixMax, noteMin, certifie, langue, tri, page, size);
+        return searchService.search(service, prixMax, noteMin, certifie, langue, tri, page, size, lat, lng, rayon);
     }
 }
