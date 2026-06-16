@@ -2,6 +2,7 @@ package com.pspd.backend.catalog.web;
 
 import com.pspd.backend.catalog.dto.CategorieResponse;
 import com.pspd.backend.catalog.dto.CreateCategorieRequest;
+import com.pspd.backend.catalog.dto.UpdateCategorieRequest;
 import com.pspd.backend.catalog.dto.ServiceResponse;
 import com.pspd.backend.catalog.service.AdminCatalogService;
 import com.pspd.backend.catalog.service.CatalogService;
@@ -39,5 +40,20 @@ public class CategorieController {
     @PreAuthorize("hasRole('ADMIN')")
     public ResponseEntity<CategorieResponse> create(@Valid @RequestBody CreateCategorieRequest req) {
         return ResponseEntity.status(HttpStatus.CREATED).body(adminCatalogService.createCategorie(req));
+    }
+
+    /** Mise à jour d'une catégorie (renommage, slug, déplacement) — admin (B5). */
+    @PatchMapping("/{id}")
+    @PreAuthorize("hasRole('ADMIN')")
+    public CategorieResponse update(@PathVariable String id, @RequestBody UpdateCategorieRequest req) {
+        return adminCatalogService.updateCategorie(id, req);
+    }
+
+    /** Désactivation logique d'une catégorie — admin (B5). */
+    @DeleteMapping("/{id}")
+    @PreAuthorize("hasRole('ADMIN')")
+    public ResponseEntity<Void> deactivate(@PathVariable String id) {
+        adminCatalogService.deactivateCategorie(id);
+        return ResponseEntity.noContent().build();
     }
 }

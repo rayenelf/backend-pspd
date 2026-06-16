@@ -11,4 +11,10 @@ public interface CategorieRepository extends JpaRepository<Categorie, String> {
     List<Categorie> findByActifTrueOrderByLibelleAsc();
 
     boolean existsBySlug(String slug);
+
+    /** Unicité du slug à la mise à jour : ignore la catégorie elle-même (B5). */
+    boolean existsBySlugAndIdNot(String slug, String id);
+
+    /** Vrai s'il reste au moins une sous-catégorie active (blocage de désactivation, B5). */
+    boolean existsByParentIdAndActifTrue(String parentId);
 }

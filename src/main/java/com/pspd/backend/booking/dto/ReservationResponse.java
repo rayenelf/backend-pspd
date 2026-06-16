@@ -23,6 +23,7 @@ public record ReservationResponse(
     StatutReservation statut,
     LocalDate dateService,
     LocalTime heureService,
+    String description,
     BigDecimal prixConvenu,
     LocalDateTime creeLe
 ) {
@@ -30,6 +31,6 @@ public record ReservationResponse(
         return new ReservationResponse(
             r.getId(), r.getClientId(), r.getPrestataireId(), r.getServiceId(),
             r.getAdresseId(), r.getType(), r.getStatut(), r.getDateService(),
-            r.getHeureService(), r.getPrixConvenu(), r.getCreeLe());
+            r.getHeureService(), r.getDescription(), r.getPrixConvenu(), r.getCreeLe());
     }
 }

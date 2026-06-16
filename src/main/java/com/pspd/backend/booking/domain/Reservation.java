@@ -14,7 +14,8 @@ import java.util.UUID;
  * Le cycle de vie suit {@link StatutReservation} / {@code 12-state-reservation.png}.
  * {@code prixConvenu} est renseigné par le prestataire au moment de l'acceptation.
  *
- * <p>Référence schéma : {@code 02-modele-de-donnees §reservations}, table {@code reservations} (V10).</p>
+ * <p>Mappée sur la table {@code reservations} créée dès {@code V1__init.sql}
+ * (le schéma complet existe déjà ; pas de nouvelle migration en Sprint 3).</p>
  */
 @Entity
 @Table(name = "reservations")
@@ -38,7 +39,7 @@ public class Reservation {
     @Column(name = "service_id", length = 36, nullable = false)
     private String serviceId;
 
-    @Column(name = "adresse_id", length = 36, nullable = false)
+    @Column(name = "adresse_id", length = 36)
     private String adresseId;
 
     @Enumerated(EnumType.STRING)
@@ -51,11 +52,15 @@ public class Reservation {
     @Builder.Default
     private StatutReservation statut = StatutReservation.EN_ATTENTE;
 
-    @Column(name = "date_service", nullable = false)
+    @Column(name = "date_service")
     private LocalDate dateService;
 
-    @Column(name = "heure_service", nullable = false)
+    @Column(name = "heure_service")
     private LocalTime heureService;
+
+    /** Précisions libres du client sur le besoin (optionnel). */
+    @Column(columnDefinition = "TEXT")
+    private String description;
 
     /** Prix final convenu, fixé à l'acceptation par le prestataire (null tant que EN_ATTENTE). */
     @Column(name = "prix_convenu", precision = 12, scale = 2)
@@ -64,21 +69,11 @@ public class Reservation {
     @Column(name = "cree_le", nullable = false, updatable = false)
     private LocalDateTime creeLe;
 
-    @Column(name = "maj_le", nullable = false)
-    private LocalDateTime majLe;
-
     @PrePersist
     void onCreate() {
         if (this.id == null) this.id = UUID.randomUUID().toString();
         if (this.statut == null) this.statut = StatutReservation.EN_ATTENTE;
         if (this.type == null) this.type = TypeReservation.IMMEDIATE;
-        LocalDateTime now = LocalDateTime.now();
-        this.creeLe = now;
-        this.majLe = now;
-    }
-
-    @PreUpdate
-    void onUpdate() {
-        this.majLe = LocalDateTime.now();
+        if (this.creeLe == null) this.creeLe = LocalDateTime.now();
     }
 }
