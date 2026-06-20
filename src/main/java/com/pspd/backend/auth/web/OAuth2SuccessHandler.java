@@ -92,6 +92,16 @@ public class OAuth2SuccessHandler implements AuthenticationSuccessHandler {
                 .build()
                 .toUriString();
 
+        // L'API est stateless (JWT) : la session HTTP n'a servi qu'au handshake OAuth2.
+        // On l'invalide et on vide le SecurityContext pour ne PAS laisser de cookie
+        // JSESSIONID avec une authentification OAuth2 (principal Google, rôle OIDC) qui,
+        // restaurée sur les requêtes suivantes, court-circuiterait le filtre JWT
+        // (→ 403 sur les endpoints à rôle, déconnexions parasites, même après un
+        // login par formulaire). Le JWT renvoyé au front est l'unique source de vérité.
+        HttpSession httpSession = request.getSession(false);
+        if (httpSession != null) httpSession.invalidate();
+        org.springframework.security.core.context.SecurityContextHolder.clearContext();
+
         response.sendRedirect(targetUrl);
     }
 }

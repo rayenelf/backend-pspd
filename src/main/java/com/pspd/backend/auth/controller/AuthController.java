@@ -41,7 +41,7 @@ public class AuthController {
     private final SessionService sessionService;
 
     @PostMapping("/register")
-    public ResponseEntity<RegisterResponse> register(@RequestBody RegisterRequest req) {
+    public ResponseEntity<RegisterResponse> register(@Valid @RequestBody RegisterRequest req) {
         RegisterResponse resp = authService.register(req);
         return ResponseEntity.status(HttpStatus.CREATED).body(resp);
     }

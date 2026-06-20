@@ -4,6 +4,7 @@ import com.pspd.backend.auth.dto.LoginRequest;
 import com.pspd.backend.auth.dto.LoginResponse;
 import com.pspd.backend.auth.dto.RegisterRequest;
 import com.pspd.backend.user.domain.Role;
+import com.pspd.backend.user.domain.StatutCompte;
 import com.pspd.backend.user.domain.User;
 import com.pspd.backend.user.repository.ClientRepository;
 import com.pspd.backend.user.repository.PrestataireRepository;
@@ -77,6 +78,48 @@ class AuthServiceTest {
         verify(clientRepository).save(any());
     }
 
+    @Test
+    void register_role_admin_est_refuse_403() {
+        RegisterRequest req = RegisterRequest.builder()
+                .email("hacker@example.com").role("ADMIN").type("PARTICULIER")
+                .nom("X").telephone("0600").adresse("12 rue A").motDePasse("password123").build();
+        when(userRepository.existsByEmail("hacker@example.com")).thenReturn(false);
+
+        assertThatThrownBy(() -> service.register(req))
+                .isInstanceOf(ResponseStatusException.class)
+                .hasMessageContaining("non autorisée");
+        verify(userRepository, never()).save(any());
+    }
+
+    @Test
+    void register_role_inconnu_renvoie_400() {
+        RegisterRequest req = RegisterRequest.builder()
+                .email("x@example.com").role("BLA").nom("X").telephone("0600")
+                .adresse("12 rue A").motDePasse("password123").build();
+        when(userRepository.existsByEmail("x@example.com")).thenReturn(false);
+
+        assertThatThrownBy(() -> service.register(req))
+                .isInstanceOf(ResponseStatusException.class)
+                .hasMessageContaining("Rôle invalide");
+    }
+
+    @Test
+    void register_prestataire_sans_zone_renvoie_400() {
+        RegisterRequest req = RegisterRequest.builder()
+                .email("pro@example.com").role("PRESTATAIRE").typePrestataire("INDIVIDUEL")
+                .nom("Pro").telephone("0600").adresse("12 rue A").motDePasse("password123")
+                .nomCommercial("ElecPro").categoriePrincipale("Électricité")
+                /* zoneIntervention manquante */ .build();
+        when(userRepository.existsByEmail("pro@example.com")).thenReturn(false);
+        when(passwordEncoder.encode("password123")).thenReturn("HASH");
+        when(userRepository.save(any(User.class))).thenAnswer(inv -> inv.getArgument(0));
+
+        assertThatThrownBy(() -> service.register(req))
+                .isInstanceOf(ResponseStatusException.class)
+                .hasMessageContaining("zone d'intervention");
+        verify(prestataireRepository, never()).save(any());
+    }
+
     // ── Connexion ───────────────────────────────────────────────────────────────
 
     @Test
@@ -101,6 +144,53 @@ class AuthServiceTest {
         assertThatThrownBy(() -> login("majd@example.com", "password123"))
                 .isInstanceOf(ResponseStatusException.class)
                 .hasMessageContaining("EMAIL_NOT_VERIFIED");
+    }
+
+    @Test
+    void login_compte_suspendu_renvoie_403() {
+        User user = User.builder().id("u1").email("sus@example.com")
+                .motDePasseHash("HASH").role(Role.CLIENT).emailVerifie(true)
+                .statutCompte(StatutCompte.SUSPENDU).build();
+        when(userRepository.findByEmail("sus@example.com")).thenReturn(Optional.of(user));
+        when(passwordEncoder.matches("password123", "HASH")).thenReturn(true);
+
+        assertThatThrownBy(() -> login("sus@example.com", "password123"))
+                .isInstanceOf(ResponseStatusException.class)
+                .hasMessageContaining("ACCOUNT_SUSPENDED");
+    }
+
+    @Test
+    void login_prestataire_non_valide_reussit_acces_limite() {
+        // Un prestataire non encore validé PEUT se connecter (accès limité) afin de
+        // pouvoir déposer ses documents ; le bandeau l'invite à les compléter.
+        User user = User.builder().id("p1").email("pro@example.com")
+                .motDePasseHash("HASH").role(Role.PRESTATAIRE).emailVerifie(true).build();
+        when(userRepository.findByEmail("pro@example.com")).thenReturn(Optional.of(user));
+        when(passwordEncoder.matches("password123", "HASH")).thenReturn(true);
+        when(sessionService.createSession(eq("p1"), any(), any())).thenReturn("sid-1");
+        when(tokenService.generateAccessToken(eq(user), anyMap())).thenReturn("ACCESS");
+        when(tokenService.generateRefreshToken(eq(user), anyMap())).thenReturn("REFRESH");
+
+        LoginResponse resp = login("pro@example.com", "password123");
+
+        assertThat(resp.getAccessToken()).isEqualTo("ACCESS");
+        assertThat(resp.getRole()).isEqualTo("PRESTATAIRE");
+    }
+
+    @Test
+    void login_prestataire_valide_reussit() {
+        User user = User.builder().id("p2").email("provalide@example.com")
+                .motDePasseHash("HASH").role(Role.PRESTATAIRE).emailVerifie(true).build();
+        when(userRepository.findByEmail("provalide@example.com")).thenReturn(Optional.of(user));
+        when(passwordEncoder.matches("password123", "HASH")).thenReturn(true);
+        when(sessionService.createSession(eq("p2"), any(), any())).thenReturn("sid-2");
+        when(tokenService.generateAccessToken(eq(user), anyMap())).thenReturn("ACCESS");
+        when(tokenService.generateRefreshToken(eq(user), anyMap())).thenReturn("REFRESH");
+
+        LoginResponse resp = login("provalide@example.com", "password123");
+
+        assertThat(resp.getAccessToken()).isEqualTo("ACCESS");
+        assertThat(resp.getRole()).isEqualTo("PRESTATAIRE");
     }
 
     @Test

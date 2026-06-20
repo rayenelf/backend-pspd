@@ -9,4 +9,6 @@ import java.util.List;
 public interface PrestataireRepository extends JpaRepository<Prestataire, String> {
 
     List<Prestataire> findByStatutValidation(StatutValidation statut);
+
+    long countByStatutValidation(StatutValidation statut);
 }

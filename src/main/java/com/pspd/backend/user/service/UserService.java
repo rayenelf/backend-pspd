@@ -2,10 +2,12 @@ package com.pspd.backend.user.service;
 
 import com.pspd.backend.user.domain.Prestataire;
 import com.pspd.backend.user.domain.User;
+import com.pspd.backend.user.dto.PrestataireProfileResponse;
 import com.pspd.backend.user.dto.UpdatePrestataireRequest;
 import com.pspd.backend.user.dto.UpdateUserRequest;
 import com.pspd.backend.user.dto.UserResponse;
 import com.pspd.backend.user.domain.StatutCompte;
+import com.pspd.backend.user.repository.DocumentLegalRepository;
 import com.pspd.backend.user.repository.PrestataireRepository;
 import com.pspd.backend.user.repository.UserRepository;
 import com.pspd.backend.auth.service.SessionService;
@@ -24,12 +26,24 @@ public class UserService {
 
     private final UserRepository userRepository;
     private final PrestataireRepository prestataireRepository;
+    private final DocumentLegalRepository documentLegalRepository;
     private final PasswordEncoder passwordEncoder;
     private final SessionService sessionService;
 
     @Transactional(readOnly = true)
     public UserResponse getByEmail(String email) {
         return UserResponse.from(findUser(email));
+    }
+
+    /** Profil professionnel du prestataire connecté (pré-remplissage + statut de validation). */
+    @Transactional(readOnly = true)
+    public PrestataireProfileResponse getPrestataireProfile(String email) {
+        User user = findUser(email);
+        Prestataire p = prestataireRepository.findById(user.getId())
+                .orElseThrow(() -> new ResponseStatusException(
+                        HttpStatus.NOT_FOUND, "Profil prestataire introuvable"));
+        long nbDocs = documentLegalRepository.countByPrestataireUserId(user.getId());
+        return PrestataireProfileResponse.of(p, (int) nbDocs);
     }
 
     @Transactional
@@ -53,6 +67,8 @@ public class UserService {
         if (req.zoneIntervention()   != null) p.setZoneIntervention(req.zoneIntervention());
         if (req.rayonKm()            != null) p.setRayonKm(req.rayonKm());
         if (req.langues()            != null) p.setLangues(req.langues());
+        if (req.latitude()           != null) p.setLatitude(req.latitude());
+        if (req.longitude()          != null) p.setLongitude(req.longitude());
         prestataireRepository.save(p);
     }
 

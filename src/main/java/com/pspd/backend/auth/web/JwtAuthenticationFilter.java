@@ -48,8 +48,12 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
 
         String header = request.getHeader("Authorization");
 
-        if (header != null && header.startsWith("Bearer ")
-                && SecurityContextHolder.getContext().getAuthentication() == null) {
+        // Le JWT (Bearer) fait TOUJOURS autorité pour l'API : s'il est présent, on
+        // IGNORE toute authentification de session héritée (ex. cookie JSESSIONID
+        // OAuth2 résiduel après un login Google) en la remplaçant par celle du token.
+        // Sans ça, l'auth de session (principal Google, rôle OIDC) court-circuitait le
+        // JWT → 403 sur les endpoints à rôle + déconnexions parasites.
+        if (header != null && header.startsWith("Bearer ")) {
 
             String token = header.substring(7);
 
@@ -65,7 +69,8 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
 
                 if (sid != null) sessionService.touch(sid);
 
-                userOpt.ifPresent(user -> {
+                if (userOpt.isPresent()) {
+                    User user = userOpt.get();
                     var authorities = List.of(
                             new SimpleGrantedAuthority("ROLE_" + user.getRole().name()));
                     var authentication = new UsernamePasswordAuthenticationToken(
@@ -73,7 +78,14 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
                     authentication.setDetails(
                             new WebAuthenticationDetailsSource().buildDetails(request));
                     SecurityContextHolder.getContext().setAuthentication(authentication);
-                });
+                } else {
+                    // Token présent mais utilisateur introuvable → on n'hérite pas d'une
+                    // auth de session : la requête doit être traitée comme non authentifiée.
+                    SecurityContextHolder.clearContext();
+                }
+            } else {
+                // Token présent mais invalide/révoqué → idem : pas d'auth héritée.
+                SecurityContextHolder.clearContext();
             }
         }
 

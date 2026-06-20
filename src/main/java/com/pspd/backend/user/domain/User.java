@@ -34,6 +34,10 @@ public class User {
     @Column(length = 120)
     private String prenom;
 
+    /** Adresse postale saisie à l'inscription (cahier des charges §4). */
+    @Column(length = 255)
+    private String adresse;
+
     @Enumerated(EnumType.STRING)
     @Column(length = 20, nullable = false)
     private Role role;
@@ -50,6 +54,15 @@ public class User {
     @Column(name = "email_verifie", nullable = false)
     @Builder.Default
     private boolean emailVerifie = false;
+
+    /** Consentement aux CGU / politique de confidentialité (cahier des charges §22). */
+    @Column(name = "cgu_acceptees", nullable = false)
+    @Builder.Default
+    private boolean cguAcceptees = false;
+
+    /** Horodatage du consentement légal (preuve RGPD). */
+    @Column(name = "consentement_le")
+    private LocalDateTime consentementLe;
 
     @Column(name = "cree_le", nullable = false, updatable = false)
     private LocalDateTime creeLe;
