@@ -3,10 +3,8 @@ package com.pspd.backend.auth.service;
 import com.pspd.backend.auth.dto.LoginRequest;
 import com.pspd.backend.auth.dto.LoginResponse;
 import com.pspd.backend.auth.dto.RegisterRequest;
-import com.pspd.backend.user.domain.Prestataire;
 import com.pspd.backend.user.domain.Role;
 import com.pspd.backend.user.domain.StatutCompte;
-import com.pspd.backend.user.domain.StatutValidation;
 import com.pspd.backend.user.domain.User;
 import com.pspd.backend.user.repository.ClientRepository;
 import com.pspd.backend.user.repository.PrestataireRepository;
@@ -162,29 +160,29 @@ class AuthServiceTest {
     }
 
     @Test
-    void login_prestataire_non_valide_renvoie_403() {
+    void login_prestataire_non_valide_reussit_acces_limite() {
+        // Un prestataire non encore validé PEUT se connecter (accès limité) afin de
+        // pouvoir déposer ses documents ; le bandeau l'invite à les compléter.
         User user = User.builder().id("p1").email("pro@example.com")
                 .motDePasseHash("HASH").role(Role.PRESTATAIRE).emailVerifie(true).build();
-        Prestataire p = Prestataire.builder().user(user).nomCommercial("ElecPro")
-                .statutValidation(StatutValidation.EN_ATTENTE).build();
         when(userRepository.findByEmail("pro@example.com")).thenReturn(Optional.of(user));
         when(passwordEncoder.matches("password123", "HASH")).thenReturn(true);
-        when(prestataireRepository.findById("p1")).thenReturn(Optional.of(p));
+        when(sessionService.createSession(eq("p1"), any(), any())).thenReturn("sid-1");
+        when(tokenService.generateAccessToken(eq(user), anyMap())).thenReturn("ACCESS");
+        when(tokenService.generateRefreshToken(eq(user), anyMap())).thenReturn("REFRESH");
 
-        assertThatThrownBy(() -> login("pro@example.com", "password123"))
-                .isInstanceOf(ResponseStatusException.class)
-                .hasMessageContaining("PRESTATAIRE_NOT_VALIDATED");
+        LoginResponse resp = login("pro@example.com", "password123");
+
+        assertThat(resp.getAccessToken()).isEqualTo("ACCESS");
+        assertThat(resp.getRole()).isEqualTo("PRESTATAIRE");
     }
 
     @Test
     void login_prestataire_valide_reussit() {
         User user = User.builder().id("p2").email("provalide@example.com")
                 .motDePasseHash("HASH").role(Role.PRESTATAIRE).emailVerifie(true).build();
-        Prestataire p = Prestataire.builder().user(user).nomCommercial("ElecPro")
-                .statutValidation(StatutValidation.VALIDE).build();
         when(userRepository.findByEmail("provalide@example.com")).thenReturn(Optional.of(user));
         when(passwordEncoder.matches("password123", "HASH")).thenReturn(true);
-        when(prestataireRepository.findById("p2")).thenReturn(Optional.of(p));
         when(sessionService.createSession(eq("p2"), any(), any())).thenReturn("sid-2");
         when(tokenService.generateAccessToken(eq(user), anyMap())).thenReturn("ACCESS");
         when(tokenService.generateRefreshToken(eq(user), anyMap())).thenReturn("REFRESH");

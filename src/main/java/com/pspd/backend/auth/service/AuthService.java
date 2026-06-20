@@ -137,16 +137,11 @@ public class AuthService {
             throw new ResponseStatusException(HttpStatus.FORBIDDEN, "ACCOUNT_SUSPENDED");
         }
 
-        // Prestataire dont le dossier n'est pas encore VALIDÉ par l'admin → blocage
-        // (cahier des charges §4 : statut En attente / Vérification / Suspendu).
-        if (user.getRole() == Role.PRESTATAIRE) {
-            StatutValidation statut = prestataireRepository.findById(user.getId())
-                    .map(Prestataire::getStatutValidation)
-                    .orElse(StatutValidation.EN_ATTENTE);
-            if (statut != StatutValidation.VALIDE) {
-                throw new ResponseStatusException(HttpStatus.FORBIDDEN, "PRESTATAIRE_NOT_VALIDATED");
-            }
-        }
+        // NB : un prestataire dont le dossier n'est pas encore VALIDÉ PEUT se connecter,
+        // mais en accès limité (profil + dépôt de documents). Le blocage métier des
+        // fonctions « pro » (missions, etc.) est porté côté front/règles d'accès, et le
+        // bandeau l'invite à compléter ses pièces. La connexion n'est donc plus bloquée
+        // ici : sinon il ne pourrait jamais déposer ses documents pour être validé.
 
         // 2FA active ET appareil non « de confiance » → challenge OTP.
         if (user.isDoubleAuthActive() && !deviceTrustService.isTrusted(user.getId(), deviceToken)) {

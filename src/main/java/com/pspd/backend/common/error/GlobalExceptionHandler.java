@@ -7,7 +7,10 @@ import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.http.converter.HttpMessageNotReadableException;
 import org.springframework.security.access.AccessDeniedException;
+import org.springframework.security.authentication.AnonymousAuthenticationToken;
+import org.springframework.security.core.Authentication;
 import org.springframework.security.core.AuthenticationException;
+import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.validation.FieldError;
 import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
@@ -67,9 +70,22 @@ public class GlobalExceptionHandler {
                 req.getRequestURI()));
     }
 
-    /** Accès refusé par @PreAuthorize / ownership. */
+    /**
+     * Accès refusé par @PreAuthorize / ownership.
+     * Si l'utilisateur n'est pas authentifié (token expiré, session Redis absente…),
+     * on renvoie 401 pour que le frontend puisse tenter un refresh silencieux.
+     * Si l'utilisateur est authentifié mais n'a pas le bon rôle, on renvoie 403.
+     */
     @ExceptionHandler(AccessDeniedException.class)
     public ResponseEntity<ErrorResponse> handleAccessDenied(AccessDeniedException ex, HttpServletRequest req) {
+        Authentication auth = SecurityContextHolder.getContext().getAuthentication();
+        boolean isAnonymous = auth == null || !auth.isAuthenticated()
+                || auth instanceof AnonymousAuthenticationToken;
+        if (isAnonymous) {
+            return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
+                .body(ErrorResponse.of(401, "UNAUTHORIZED",
+                    "Session expirée — veuillez vous reconnecter.", req.getRequestURI()));
+        }
         return ResponseEntity.status(HttpStatus.FORBIDDEN)
             .body(ErrorResponse.of(403, "FORBIDDEN", "Accès refusé à cette ressource.", req.getRequestURI()));
     }

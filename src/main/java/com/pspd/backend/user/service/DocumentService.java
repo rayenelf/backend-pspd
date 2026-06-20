@@ -54,6 +54,21 @@ public class DocumentService {
                 .stream().map(DocumentResponse::from).toList();
     }
 
+    /**
+     * Vérifie que le document {id} appartient au prestataire {email} et renvoie
+     * son chemin de stockage. Lève 404 si introuvable, 403 si pas le bon propriétaire.
+     */
+    @Transactional(readOnly = true)
+    public String resolveOwnedDocumentPath(String email, String documentId) {
+        DocumentLegal doc = documentLegalRepository.findById(documentId)
+                .orElseThrow(() -> ApiException.notFound("Document introuvable."));
+        String ownerEmail = doc.getPrestataire().getUser().getEmail();
+        if (!ownerEmail.equals(email)) {
+            throw ApiException.forbidden("Accès refusé à ce document.");
+        }
+        return doc.getUrlFichier();
+    }
+
     private Prestataire resolvePrestataire(String email) {
         User user = userRepository.findByEmail(email)
                 .orElseThrow(() -> ApiException.unauthorized("Utilisateur introuvable."));

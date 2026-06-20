@@ -11,4 +11,6 @@ public interface DocumentLegalRepository extends JpaRepository<DocumentLegal, St
     List<DocumentLegal> findByPrestataireUserId(String prestataireId);
 
     List<DocumentLegal> findByPrestataireUserIdAndStatut(String prestataireId, StatutValidation statut);
+
+    long countByPrestataireUserId(String prestataireId);
 }
