@@ -32,6 +32,12 @@ public class Prestataire {
     @Column(name = "categorie_principale", length = 80)
     private String categoriePrincipale;
 
+    /** Individuel (artisan/freelance) ou Société prestataire (cahier des charges §3). */
+    @Enumerated(EnumType.STRING)
+    @Column(name = "type_prestataire", length = 20, nullable = false)
+    @Builder.Default
+    private TypePrestataire typePrestataire = TypePrestataire.INDIVIDUEL;
+
     @Column(name = "zone_intervention", length = 180)
     private String zoneIntervention;
 

@@ -13,6 +13,7 @@ import org.springframework.http.HttpStatus;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.web.server.ResponseStatusException;
+import java.time.LocalDateTime;
 import java.util.Map;
 import java.util.Optional;
 
@@ -45,21 +46,32 @@ public class AuthService {
             throw new ResponseStatusException(HttpStatus.CONFLICT, "Un compte existe déjà pour cet email");
         }
 
-        Role role = Role.valueOf(req.getRole());
+        // Liste blanche : l'inscription publique ne crée QUE des comptes CLIENT ou
+        // PRESTATAIRE. Toute autre valeur (ADMIN, SUPER_ADMIN, valeur inconnue) est
+        // rejetée — empêche l'escalade de privilèges via le corps de la requête.
+        Role role = parsePublicRole(req.getRole());
 
+        LocalDateTime now = LocalDateTime.now();
         User user = User.builder()
                 .email(req.getEmail())
                 .telephone(req.getTelephone())
                 .nom(req.getNom())
                 .prenom(req.getPrenom())
+                .adresse(req.getAdresse())
                 .role(role)
+                .cguAcceptees(req.isCguAcceptees())
+                .consentementLe(now)
                 .motDePasseHash(passwordEncoder.encode(req.getMotDePasse()))
                 .build();
 
         user = userRepository.save(user);
 
         if (role == Role.CLIENT) {
-            TypeClient type = TypeClient.valueOf(req.getType());
+            TypeClient type = parseClientType(req.getType());
+            if (type == TypeClient.ENTREPRISE && isBlank(req.getRaisonSociale())) {
+                throw new ResponseStatusException(HttpStatus.BAD_REQUEST,
+                        "La raison sociale est requise pour un client entreprise");
+            }
             Client client = Client.builder()
                     .user(user)
                     .type(type)
@@ -68,10 +80,22 @@ public class AuthService {
                     .build();
             clientRepository.save(client);
         } else if (role == Role.PRESTATAIRE) {
+            if (isBlank(req.getNomCommercial())) {
+                throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Le nom commercial est requis");
+            }
+            if (isBlank(req.getCategoriePrincipale())) {
+                throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "La catégorie d'activité est requise");
+            }
+            if (isBlank(req.getZoneIntervention())) {
+                throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "La zone d'intervention est requise");
+            }
+            TypePrestataire typePrestataire = parsePrestataireType(req.getTypePrestataire());
             Prestataire p = Prestataire.builder()
                     .user(user)
                     .nomCommercial(req.getNomCommercial())
                     .categoriePrincipale(req.getCategoriePrincipale())
+                    .zoneIntervention(req.getZoneIntervention())
+                    .typePrestataire(typePrestataire)
                     .build();
             prestataireRepository.save(p);
         }
@@ -106,6 +130,22 @@ public class AuthService {
         // Email non vérifié → on bloque (le front proposera de renvoyer le lien).
         if (!user.isEmailVerifie()) {
             throw new ResponseStatusException(HttpStatus.FORBIDDEN, "EMAIL_NOT_VERIFIED");
+        }
+
+        // Compte suspendu ou supprimé par un administrateur → blocage.
+        if (user.getStatutCompte() != StatutCompte.ACTIF) {
+            throw new ResponseStatusException(HttpStatus.FORBIDDEN, "ACCOUNT_SUSPENDED");
+        }
+
+        // Prestataire dont le dossier n'est pas encore VALIDÉ par l'admin → blocage
+        // (cahier des charges §4 : statut En attente / Vérification / Suspendu).
+        if (user.getRole() == Role.PRESTATAIRE) {
+            StatutValidation statut = prestataireRepository.findById(user.getId())
+                    .map(Prestataire::getStatutValidation)
+                    .orElse(StatutValidation.EN_ATTENTE);
+            if (statut != StatutValidation.VALIDE) {
+                throw new ResponseStatusException(HttpStatus.FORBIDDEN, "PRESTATAIRE_NOT_VALIDATED");
+            }
         }
 
         // 2FA active ET appareil non « de confiance » → challenge OTP.
@@ -160,5 +200,51 @@ public class AuthService {
                 tokenService.generateAccessToken(user, claims),
                 tokenService.generateRefreshToken(user, claims),
                 false);
+    }
+
+    // ── Helpers de parsing sûr des énumérations envoyées par le client ──────────
+
+    /** N'autorise que CLIENT/PRESTATAIRE à l'inscription publique (anti-escalade). */
+    private Role parsePublicRole(String raw) {
+        if (raw == null) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Le rôle est requis");
+        }
+        Role role;
+        try {
+            role = Role.valueOf(raw.trim().toUpperCase());
+        } catch (IllegalArgumentException e) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Rôle invalide");
+        }
+        if (role != Role.CLIENT && role != Role.PRESTATAIRE) {
+            throw new ResponseStatusException(HttpStatus.FORBIDDEN,
+                    "Inscription non autorisée pour ce rôle");
+        }
+        return role;
+    }
+
+    private TypeClient parseClientType(String raw) {
+        if (raw == null || raw.isBlank()) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Le type de client est requis");
+        }
+        try {
+            return TypeClient.valueOf(raw.trim().toUpperCase());
+        } catch (IllegalArgumentException e) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Type de client invalide");
+        }
+    }
+
+    private TypePrestataire parsePrestataireType(String raw) {
+        if (raw == null || raw.isBlank()) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Le type de prestataire est requis");
+        }
+        try {
+            return TypePrestataire.valueOf(raw.trim().toUpperCase());
+        } catch (IllegalArgumentException e) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Type de prestataire invalide");
+        }
+    }
+
+    private boolean isBlank(String s) {
+        return s == null || s.isBlank();
     }
 }
