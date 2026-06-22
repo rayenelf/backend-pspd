@@ -1,7 +1,9 @@
 package com.pspd.backend.common.error;
 
+import com.pspd.backend.common.i18n.Messages;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.validation.ConstraintViolationException;
+import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -27,7 +29,10 @@ import java.util.List;
  */
 @RestControllerAdvice
 @Slf4j
+@RequiredArgsConstructor
 public class GlobalExceptionHandler {
+
+    private final Messages messages;
 
     /** Exceptions métier explicites (statut + code portés par l'exception). */
     @ExceptionHandler(ApiException.class)
@@ -43,7 +48,7 @@ public class GlobalExceptionHandler {
             .map(this::toFieldError)
             .toList();
         return ResponseEntity.badRequest()
-            .body(ErrorResponse.of(400, "VALIDATION_ERROR", "Un ou plusieurs champs sont invalides.",
+            .body(ErrorResponse.of(400, "VALIDATION_ERROR", messages.get("error.validation"),
                 req.getRequestURI(), fields));
     }
 
@@ -58,7 +63,7 @@ public class GlobalExceptionHandler {
     @ExceptionHandler(MaxUploadSizeExceededException.class)
     public ResponseEntity<ErrorResponse> handleMaxUpload(MaxUploadSizeExceededException ex, HttpServletRequest req) {
         return ResponseEntity.status(HttpStatus.PAYLOAD_TOO_LARGE)
-            .body(ErrorResponse.of(413, "FILE_TOO_LARGE", "Le fichier dépasse la taille maximale autorisée (5 Mo).",
+            .body(ErrorResponse.of(413, "FILE_TOO_LARGE", messages.get("error.fileTooLarge"),
                 req.getRequestURI()));
     }
 
@@ -66,7 +71,7 @@ public class GlobalExceptionHandler {
     @ExceptionHandler(HttpMessageNotReadableException.class)
     public ResponseEntity<ErrorResponse> handleUnreadable(HttpMessageNotReadableException ex, HttpServletRequest req) {
         return ResponseEntity.badRequest()
-            .body(ErrorResponse.of(400, "MALFORMED_REQUEST", "Corps de requête invalide ou illisible.",
+            .body(ErrorResponse.of(400, "MALFORMED_REQUEST", messages.get("error.malformedRequest"),
                 req.getRequestURI()));
     }
 
@@ -84,17 +89,17 @@ public class GlobalExceptionHandler {
         if (isAnonymous) {
             return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
                 .body(ErrorResponse.of(401, "UNAUTHORIZED",
-                    "Session expirée — veuillez vous reconnecter.", req.getRequestURI()));
+                    messages.get("error.unauthorized"), req.getRequestURI()));
         }
         return ResponseEntity.status(HttpStatus.FORBIDDEN)
-            .body(ErrorResponse.of(403, "FORBIDDEN", "Accès refusé à cette ressource.", req.getRequestURI()));
+            .body(ErrorResponse.of(403, "FORBIDDEN", messages.get("error.forbidden"), req.getRequestURI()));
     }
 
     /** Échec d'authentification (token absent/invalide au niveau méthode). */
     @ExceptionHandler(AuthenticationException.class)
     public ResponseEntity<ErrorResponse> handleAuth(AuthenticationException ex, HttpServletRequest req) {
         return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
-            .body(ErrorResponse.of(401, "UNAUTHORIZED", "Authentification requise.", req.getRequestURI()));
+            .body(ErrorResponse.of(401, "UNAUTHORIZED", messages.get("error.authRequired"), req.getRequestURI()));
     }
 
     /**
@@ -105,7 +110,7 @@ public class GlobalExceptionHandler {
     @ExceptionHandler(ResponseStatusException.class)
     public ResponseEntity<ErrorResponse> handleResponseStatus(ResponseStatusException ex, HttpServletRequest req) {
         int status = ex.getStatusCode().value();
-        String message = ex.getReason() != null ? ex.getReason() : "Requête refusée.";
+        String message = ex.getReason() != null ? ex.getReason() : messages.get("error.businessDefault");
         return ResponseEntity.status(status)
             .body(ErrorResponse.of(status, "BUSINESS_ERROR", message, req.getRequestURI()));
     }
@@ -115,7 +120,7 @@ public class GlobalExceptionHandler {
     public ResponseEntity<ErrorResponse> handleUnexpected(Exception ex, HttpServletRequest req) {
         log.error("Erreur non gérée sur {} : {}", req.getRequestURI(), ex.getMessage(), ex);
         return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
-            .body(ErrorResponse.of(500, "INTERNAL_ERROR", "Une erreur interne est survenue.", req.getRequestURI()));
+            .body(ErrorResponse.of(500, "INTERNAL_ERROR", messages.get("error.internal"), req.getRequestURI()));
     }
 
     private ErrorResponse.FieldError toFieldError(FieldError fe) {
