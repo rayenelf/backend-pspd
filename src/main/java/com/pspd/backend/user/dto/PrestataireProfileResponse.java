@@ -19,7 +19,8 @@ public record PrestataireProfileResponse(
         String statutValidation,
         boolean certifie,
         BigDecimal noteMoyenne,
-        int nombreDocuments
+        int nombreDocuments,
+        String avatarUrl
 ) {
     public static PrestataireProfileResponse of(Prestataire p, int nombreDocuments) {
         return new PrestataireProfileResponse(
@@ -32,7 +33,10 @@ public record PrestataireProfileResponse(
                 p.getStatutValidation().name(),
                 p.isCertifie(),
                 p.getNoteMoyenne(),
-                nombreDocuments
+                nombreDocuments,
+                // URL publique de l'avatar (null si pas de photo) — le front affiche
+                // un placeholder dans ce cas.
+                p.getPhotoUrl() != null ? "/api/prestataires/" + p.getUserId() + "/avatar" : null
         );
     }
 }
