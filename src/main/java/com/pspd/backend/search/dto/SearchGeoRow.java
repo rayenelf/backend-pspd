@@ -8,6 +8,7 @@ import java.math.BigDecimal;
  */
 public record SearchGeoRow(
     String prestataireId,
+    String slug,
     String nomCommercial,
     String categoriePrincipale,
     BigDecimal note,

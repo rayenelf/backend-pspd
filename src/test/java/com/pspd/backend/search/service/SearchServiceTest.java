@@ -31,7 +31,7 @@ class SearchServiceTest {
     private static final double LAT = 36.8065, LNG = 10.1815;
 
     private SearchGeoRow row(String id, double lat, double lng, double note, double prix) {
-        return new SearchGeoRow(id, id, "Cat", BigDecimal.valueOf(note), false,
+        return new SearchGeoRow(id, id, id, "Cat", BigDecimal.valueOf(note), false,
                 "Arabe", "Tunis", 20, BigDecimal.valueOf(prix), lat, lng);
     }
 
@@ -39,7 +39,7 @@ class SearchServiceTest {
 
     @Test
     void sans_geoloc_delegue_la_recherche_paginee() {
-        SearchRow r = new SearchRow("p1", "ElecPro", "Élec", BigDecimal.valueOf(4.5),
+        SearchRow r = new SearchRow("p1", "elecpro", "ElecPro", "Élec", BigDecimal.valueOf(4.5),
                 true, "Arabe", "Tunis", 20, BigDecimal.valueOf(60));
         when(searchRepository.search(any(), any(), any(), any(), any(), any(), any(Pageable.class)))
                 .thenReturn(new PageImpl<>(List.of(r)));

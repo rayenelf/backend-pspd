@@ -93,6 +93,7 @@ public class AuthService {
             Prestataire p = Prestataire.builder()
                     .user(user)
                     .nomCommercial(req.getNomCommercial())
+                    .slug(uniqueSlug(req.getNomCommercial()))
                     .categoriePrincipale(req.getCategoriePrincipale())
                     .zoneIntervention(req.getZoneIntervention())
                     .typePrestataire(typePrestataire)
@@ -241,5 +242,17 @@ public class AuthService {
 
     private boolean isBlank(String s) {
         return s == null || s.isBlank();
+    }
+
+    /** Slug unique dérivé du nom commercial ; suffixe -2, -3… en cas de collision. */
+    private String uniqueSlug(String nomCommercial) {
+        String base = com.pspd.backend.common.util.SlugUtils.toSlug(nomCommercial);
+        if (base.isBlank()) base = "prestataire";
+        String candidate = base;
+        int n = 2;
+        while (prestataireRepository.existsBySlug(candidate)) {
+            candidate = base + "-" + n++;
+        }
+        return candidate;
     }
 }

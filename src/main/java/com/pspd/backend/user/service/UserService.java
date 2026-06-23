@@ -62,7 +62,14 @@ public class UserService {
                 .orElseThrow(() -> new ResponseStatusException(
                         HttpStatus.NOT_FOUND, "Profil prestataire introuvable"));
 
-        if (req.nomCommercial()      != null) p.setNomCommercial(req.nomCommercial());
+        if (req.nomCommercial() != null) {
+            p.setNomCommercial(req.nomCommercial());
+            // Régénère le slug si le nom change (ou s'il manque encore).
+            String newBase = com.pspd.backend.common.util.SlugUtils.toSlug(req.nomCommercial());
+            if (p.getSlug() == null || p.getSlug().isBlank() || !p.getSlug().equals(newBase)) {
+                p.setSlug(uniqueSlug(req.nomCommercial(), p.getUserId()));
+            }
+        }
         if (req.categoriePrincipale() != null) p.setCategoriePrincipale(req.categoriePrincipale());
         if (req.zoneIntervention()   != null) p.setZoneIntervention(req.zoneIntervention());
         if (req.rayonKm()            != null) p.setRayonKm(req.rayonKm());
@@ -135,5 +142,20 @@ public class UserService {
     private User findUser(String email) {
         return userRepository.findByEmail(email)
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Utilisateur introuvable"));
+    }
+
+    /** Slug unique dérivé du nom ; ignore le prestataire courant et suffixe en cas de collision. */
+    private String uniqueSlug(String nomCommercial, String currentUserId) {
+        String base = com.pspd.backend.common.util.SlugUtils.toSlug(nomCommercial);
+        if (base.isBlank()) base = "prestataire";
+        String candidate = base;
+        int n = 2;
+        while (true) {
+            var existing = prestataireRepository.findBySlug(candidate);
+            if (existing.isEmpty() || existing.get().getUserId().equals(currentUserId)) {
+                return candidate;
+            }
+            candidate = base + "-" + n++;
+        }
     }
 }

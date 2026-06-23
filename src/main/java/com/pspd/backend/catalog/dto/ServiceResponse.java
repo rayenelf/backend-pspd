@@ -10,11 +10,13 @@ public record ServiceResponse(
     String libelle,
     String description,
     BigDecimal prixIndicatif,
-    String unite
+    String unite,
+    String statut
 ) {
     public static ServiceResponse from(Service s) {
         return new ServiceResponse(
             s.getId(), s.getCategorieId(), s.getLibelle(),
-            s.getDescription(), s.getPrixIndicatif(), s.getUnite());
+            s.getDescription(), s.getPrixIndicatif(), s.getUnite(),
+            s.getStatut() != null ? s.getStatut().name() : null);
     }
 }

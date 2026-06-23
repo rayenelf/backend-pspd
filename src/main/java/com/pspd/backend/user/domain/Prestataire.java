@@ -29,6 +29,10 @@ public class Prestataire {
     @Column(name = "nom_commercial", length = 180, nullable = false)
     private String nomCommercial;
 
+    /** Slug URL-friendly généré depuis nomCommercial (ex: "elecpro-tunis"), unique. */
+    @Column(name = "slug", length = 140, unique = true)
+    private String slug;
+
     @Column(name = "categorie_principale", length = 80)
     private String categoriePrincipale;
 

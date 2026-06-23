@@ -9,6 +9,7 @@ import java.math.BigDecimal;
  */
 public record SearchRow(
     String prestataireId,
+    String slug,
     String nomCommercial,
     String categoriePrincipale,
     BigDecimal note,
