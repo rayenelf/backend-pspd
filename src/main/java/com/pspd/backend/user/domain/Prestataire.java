@@ -61,6 +61,10 @@ public class Prestataire {
     @Column(length = 120)
     private String langues;
 
+    /** Photo de profil / avatar public (chemin relatif /uploads/<uuid>), null si absente. */
+    @Column(name = "photo_url", length = 400)
+    private String photoUrl;
+
     /** Coordonnées GPS (B4) — null tant que le prestataire ne les a pas renseignées. */
     @Column(name = "latitude")
     private Double latitude;
