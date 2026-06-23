@@ -12,6 +12,7 @@ import java.util.List;
  */
 public record PublicPrestataireResponse(
         String id,
+        String slug,
         String nomCommercial,
         String categoriePrincipale,
         String zoneIntervention,
@@ -25,6 +26,7 @@ public record PublicPrestataireResponse(
     public static PublicPrestataireResponse of(Prestataire p, List<PhotoResponse> portfolio) {
         return new PublicPrestataireResponse(
                 p.getUserId(),
+                p.getSlug(),
                 p.getNomCommercial(),
                 p.getCategoriePrincipale(),
                 p.getZoneIntervention(),

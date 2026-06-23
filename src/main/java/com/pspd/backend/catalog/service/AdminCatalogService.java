@@ -2,6 +2,7 @@ package com.pspd.backend.catalog.service;
 
 import com.pspd.backend.catalog.domain.Categorie;
 import com.pspd.backend.catalog.domain.Service;
+import com.pspd.backend.catalog.domain.StatutService;
 import com.pspd.backend.catalog.dto.CreateCategorieRequest;
 import com.pspd.backend.catalog.dto.CreateServiceRequest;
 import com.pspd.backend.catalog.dto.UpdateCategorieRequest;
@@ -144,5 +145,35 @@ public class AdminCatalogService {
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Service introuvable"));
         s.setActif(false);
         serviceRepository.save(s);
+    }
+
+    // ── Propositions de services par les prestataires ─────────────────────────
+
+    /** File d'attente : services proposés par des prestataires, en attente de validation. */
+    @Transactional(readOnly = true)
+    public java.util.List<ServiceResponse> listPendingServices() {
+        return serviceRepository.findByStatutOrderByLibelleAsc(StatutService.EN_ATTENTE)
+                .stream().map(ServiceResponse::from).toList();
+    }
+
+    /** Approuve une proposition : le service rejoint le catalogue public. */
+    @Transactional
+    public ServiceResponse approveService(String id) {
+        Service s = serviceRepository.findById(id)
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Service introuvable"));
+        s.setStatut(StatutService.APPROUVE);
+        return ServiceResponse.from(serviceRepository.save(s));
+    }
+
+    /** Rejette une proposition : délie le service des prestataires puis le supprime. */
+    @Transactional
+    public void rejectService(String id) {
+        Service s = serviceRepository.findById(id)
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Service introuvable"));
+        if (s.getStatut() != StatutService.EN_ATTENTE) {
+            throw new ResponseStatusException(HttpStatus.CONFLICT, "Seules les propositions en attente peuvent être rejetées");
+        }
+        serviceRepository.unlinkFromAllPrestataires(id);
+        serviceRepository.delete(s);
     }
 }

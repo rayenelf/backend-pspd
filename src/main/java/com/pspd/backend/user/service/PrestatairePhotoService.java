@@ -104,12 +104,17 @@ public class PrestatairePhotoService {
                 .stream().map(PhotoResponse::from).toList();
     }
 
-    /** Profil public complet (infos + avatar + portfolio) pour la page détail. */
+    /**
+     * Profil public complet (infos + avatar + portfolio) pour la page détail.
+     * Le paramètre accepte indifféremment le slug (URL conviviale) ou l'UUID
+     * (rétro-compatibilité des anciens liens).
+     */
     @Transactional(readOnly = true)
-    public PublicPrestataireResponse publicProfile(String prestataireId) {
-        Prestataire prestataire = prestataireRepository.findById(prestataireId)
+    public PublicPrestataireResponse publicProfile(String slugOrId) {
+        Prestataire prestataire = prestataireRepository.findBySlug(slugOrId)
+                .or(() -> prestataireRepository.findById(slugOrId))
                 .orElseThrow(() -> ApiException.notFound("Prestataire introuvable."));
-        return PublicPrestataireResponse.of(prestataire, listFor(prestataireId));
+        return PublicPrestataireResponse.of(prestataire, listFor(prestataire.getUserId()));
     }
 
     /** Chemin disque de l'avatar d'un prestataire (404 si absent). */

@@ -1,6 +1,7 @@
 package com.pspd.backend.catalog.service;
 
 import com.pspd.backend.catalog.domain.Categorie;
+import com.pspd.backend.catalog.domain.StatutService;
 import com.pspd.backend.catalog.dto.CategorieResponse;
 import com.pspd.backend.catalog.dto.ServiceResponse;
 import com.pspd.backend.catalog.repository.CategorieRepository;
@@ -52,7 +53,8 @@ public class CatalogService {
 
     @Transactional(readOnly = true)
     public List<ServiceResponse> servicesOfCategorie(String categorieId) {
-        return serviceRepository.findByCategorieIdAndActifTrueOrderByLibelleAsc(categorieId)
+        return serviceRepository.findByCategorieIdAndActifTrueAndStatutOrderByLibelleAsc(
+                        categorieId, StatutService.APPROUVE)
                 .stream()
                 .map(ServiceResponse::from)
                 .toList();

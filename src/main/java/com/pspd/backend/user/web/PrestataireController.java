@@ -1,13 +1,18 @@
 package com.pspd.backend.user.web;
 
+import com.pspd.backend.catalog.dto.ServiceResponse;
 import com.pspd.backend.common.storage.FileStorageService;
 import com.pspd.backend.user.domain.TypeDocument;
 import com.pspd.backend.user.dto.DocumentResponse;
+import com.pspd.backend.user.dto.MesServicesResponse;
 import com.pspd.backend.user.dto.PrestataireProfileResponse;
 import com.pspd.backend.user.dto.PhotoResponse;
+import com.pspd.backend.user.dto.ProposeServiceRequest;
+import com.pspd.backend.user.dto.SetServicesRequest;
 import com.pspd.backend.user.dto.UpdatePrestataireRequest;
 import com.pspd.backend.user.service.DocumentService;
 import com.pspd.backend.user.service.PrestatairePhotoService;
+import com.pspd.backend.user.service.PrestataireServiceService;
 import com.pspd.backend.user.service.UserService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
@@ -29,10 +34,11 @@ import java.util.List;
 @PreAuthorize("hasRole('PRESTATAIRE')")   // #2 — réservé aux prestataires
 public class PrestataireController {
 
-    private final UserService             userService;
-    private final DocumentService         documentService;
-    private final PrestatairePhotoService photoService;
-    private final FileStorageService      fileStorageService;
+    private final UserService               userService;
+    private final DocumentService           documentService;
+    private final PrestatairePhotoService   photoService;
+    private final PrestataireServiceService prestataireServiceService;
+    private final FileStorageService        fileStorageService;
 
     /** Profil professionnel du prestataire connecté (pré-remplissage + statut). */
     @GetMapping("/me")
@@ -79,6 +85,30 @@ public class PrestataireController {
                 .contentType(MediaType.parseMediaType(contentType))
                 .header(HttpHeaders.CONTENT_DISPOSITION, "inline")
                 .body(resource);
+    }
+
+    // ── Services proposés ────────────────────────────────────────────────────
+
+    /** Catalogue approuvé + sélection courante + propositions en attente du prestataire. */
+    @GetMapping("/me/services")
+    public MesServicesResponse myServices(Authentication authentication) {
+        return prestataireServiceService.getMine(authentication.getName());
+    }
+
+    /** Remplace la liste des services (approuvés) proposés par le prestataire. */
+    @PutMapping("/me/services")
+    public ResponseEntity<Void> setMyServices(
+            @RequestBody SetServicesRequest req, Authentication authentication) {
+        prestataireServiceService.setMine(authentication.getName(), req.serviceIds());
+        return ResponseEntity.noContent().build();
+    }
+
+    /** Propose un nouveau service (créé en EN_ATTENTE, soumis à validation admin). */
+    @PostMapping("/me/services/propose")
+    public ResponseEntity<ServiceResponse> proposeService(
+            @Valid @RequestBody ProposeServiceRequest req, Authentication authentication) {
+        ServiceResponse created = prestataireServiceService.propose(authentication.getName(), req);
+        return ResponseEntity.status(HttpStatus.CREATED).body(created);
     }
 
     // ── Photo de profil (avatar) ─────────────────────────────────────────────

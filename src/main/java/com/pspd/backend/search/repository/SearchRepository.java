@@ -24,7 +24,7 @@ public interface SearchRepository extends JpaRepository<Prestataire, String> {
 
     @Query(value = """
         SELECT new com.pspd.backend.search.dto.SearchRow(
-            p.userId, p.nomCommercial, p.categoriePrincipale, p.noteMoyenne,
+            p.userId, p.slug, p.nomCommercial, p.categoriePrincipale, p.noteMoyenne,
             p.certifie, p.langues, p.zoneIntervention, p.rayonKm,
             MIN(s.prixIndicatif))
         FROM Prestataire p JOIN p.services s
@@ -35,7 +35,7 @@ public interface SearchRepository extends JpaRepository<Prestataire, String> {
           AND (:noteMin   IS NULL OR p.noteMoyenne >= :noteMin)
           AND (:certifie  IS NULL OR p.certifie = :certifie)
           AND (:langue    IS NULL OR LOWER(p.langues) LIKE LOWER(CONCAT('%', :langue, '%')))
-        GROUP BY p.userId, p.nomCommercial, p.categoriePrincipale, p.noteMoyenne,
+        GROUP BY p.userId, p.slug, p.nomCommercial, p.categoriePrincipale, p.noteMoyenne,
                  p.certifie, p.langues, p.zoneIntervention, p.rayonKm
         ORDER BY
           CASE WHEN :tri = 'moinsCher' THEN MIN(s.prixIndicatif) END ASC,
@@ -68,7 +68,7 @@ public interface SearchRepository extends JpaRepository<Prestataire, String> {
      */
     @Query("""
         SELECT new com.pspd.backend.search.dto.SearchGeoRow(
-            p.userId, p.nomCommercial, p.categoriePrincipale, p.noteMoyenne,
+            p.userId, p.slug, p.nomCommercial, p.categoriePrincipale, p.noteMoyenne,
             p.certifie, p.langues, p.zoneIntervention, p.rayonKm,
             MIN(s.prixIndicatif), p.latitude, p.longitude)
         FROM Prestataire p JOIN p.services s
@@ -80,7 +80,7 @@ public interface SearchRepository extends JpaRepository<Prestataire, String> {
           AND (:noteMin   IS NULL OR p.noteMoyenne >= :noteMin)
           AND (:certifie  IS NULL OR p.certifie = :certifie)
           AND (:langue    IS NULL OR LOWER(p.langues) LIKE LOWER(CONCAT('%', :langue, '%')))
-        GROUP BY p.userId, p.nomCommercial, p.categoriePrincipale, p.noteMoyenne,
+        GROUP BY p.userId, p.slug, p.nomCommercial, p.categoriePrincipale, p.noteMoyenne,
                  p.certifie, p.langues, p.zoneIntervention, p.rayonKm, p.latitude, p.longitude
         """)
     List<SearchGeoRow> searchGeo(

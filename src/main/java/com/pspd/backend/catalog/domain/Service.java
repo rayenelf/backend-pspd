@@ -43,6 +43,16 @@ public class Service {
     @Builder.Default
     private boolean actif = true;
 
+    /** APPROUVE (catalogue public) ou EN_ATTENTE (proposé par un prestataire). */
+    @Enumerated(EnumType.STRING)
+    @Column(length = 20, nullable = false)
+    @Builder.Default
+    private StatutService statut = StatutService.APPROUVE;
+
+    /** user_id du prestataire ayant proposé ce service (null pour le catalogue officiel). */
+    @Column(name = "propose_par", length = 36)
+    private String proposePar;
+
     @PrePersist
     void init() {
         if (this.id == null) this.id = UUID.randomUUID().toString();

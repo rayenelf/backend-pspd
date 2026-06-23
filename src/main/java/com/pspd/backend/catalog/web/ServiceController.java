@@ -28,6 +28,27 @@ public class ServiceController {
         return ResponseEntity.status(HttpStatus.CREATED).body(adminCatalogService.createService(req));
     }
 
+    // ── Propositions de services (prestataires → validation admin) ────────────
+
+    /** File d'attente des services proposés par des prestataires. */
+    @GetMapping("/pending")
+    public java.util.List<ServiceResponse> pending() {
+        return adminCatalogService.listPendingServices();
+    }
+
+    /** Approuve une proposition : le service rejoint le catalogue public. */
+    @PostMapping("/{id}/approve")
+    public ServiceResponse approve(@PathVariable String id) {
+        return adminCatalogService.approveService(id);
+    }
+
+    /** Rejette une proposition : suppression du service proposé. */
+    @PostMapping("/{id}/reject")
+    public ResponseEntity<Void> reject(@PathVariable String id) {
+        adminCatalogService.rejectService(id);
+        return ResponseEntity.noContent().build();
+    }
+
     @PatchMapping("/{id}")
     public ServiceResponse update(@PathVariable String id, @RequestBody UpdateServiceRequest req) {
         return adminCatalogService.updateService(id, req);
