@@ -30,11 +30,12 @@ public interface SearchRepository extends JpaRepository<Prestataire, String> {
         FROM Prestataire p JOIN p.services s
         WHERE p.statutValidation = com.pspd.backend.user.domain.StatutValidation.VALIDE
           AND s.actif = true
-          AND (:serviceId IS NULL OR s.id = :serviceId)
-          AND (:prixMax   IS NULL OR s.prixIndicatif <= :prixMax)
-          AND (:noteMin   IS NULL OR p.noteMoyenne >= :noteMin)
-          AND (:certifie  IS NULL OR p.certifie = :certifie)
-          AND (:langue    IS NULL OR LOWER(p.langues) LIKE LOWER(CONCAT('%', :langue, '%')))
+          AND (:serviceId   IS NULL OR s.id           = :serviceId)
+          AND (:categoryId  IS NULL OR s.categorieId  = :categoryId)
+          AND (:prixMax     IS NULL OR s.prixIndicatif <= :prixMax)
+          AND (:noteMin     IS NULL OR p.noteMoyenne  >= :noteMin)
+          AND (:certifie    IS NULL OR p.certifie     = :certifie)
+          AND (:langue      IS NULL OR LOWER(p.langues) LIKE LOWER(CONCAT('%', :langue, '%')))
         GROUP BY p.userId, p.slug, p.nomCommercial, p.categoriePrincipale, p.noteMoyenne,
                  p.certifie, p.langues, p.zoneIntervention, p.rayonKm
         ORDER BY
@@ -46,19 +47,21 @@ public interface SearchRepository extends JpaRepository<Prestataire, String> {
         FROM Prestataire p JOIN p.services s
         WHERE p.statutValidation = com.pspd.backend.user.domain.StatutValidation.VALIDE
           AND s.actif = true
-          AND (:serviceId IS NULL OR s.id = :serviceId)
-          AND (:prixMax   IS NULL OR s.prixIndicatif <= :prixMax)
-          AND (:noteMin   IS NULL OR p.noteMoyenne >= :noteMin)
-          AND (:certifie  IS NULL OR p.certifie = :certifie)
-          AND (:langue    IS NULL OR LOWER(p.langues) LIKE LOWER(CONCAT('%', :langue, '%')))
+          AND (:serviceId   IS NULL OR s.id           = :serviceId)
+          AND (:categoryId  IS NULL OR s.categorieId  = :categoryId)
+          AND (:prixMax     IS NULL OR s.prixIndicatif <= :prixMax)
+          AND (:noteMin     IS NULL OR p.noteMoyenne  >= :noteMin)
+          AND (:certifie    IS NULL OR p.certifie     = :certifie)
+          AND (:langue      IS NULL OR LOWER(p.langues) LIKE LOWER(CONCAT('%', :langue, '%')))
         """)
     Page<SearchRow> search(
-        @Param("serviceId") String serviceId,
-        @Param("prixMax")   BigDecimal prixMax,
-        @Param("noteMin")   BigDecimal noteMin,
-        @Param("certifie")  Boolean certifie,
-        @Param("langue")    String langue,
-        @Param("tri")       String tri,
+        @Param("serviceId")  String serviceId,
+        @Param("categoryId") String categoryId,
+        @Param("prixMax")    BigDecimal prixMax,
+        @Param("noteMin")    BigDecimal noteMin,
+        @Param("certifie")   Boolean certifie,
+        @Param("langue")     String langue,
+        @Param("tri")        String tri,
         Pageable pageable);
 
     /**
@@ -75,18 +78,20 @@ public interface SearchRepository extends JpaRepository<Prestataire, String> {
         WHERE p.statutValidation = com.pspd.backend.user.domain.StatutValidation.VALIDE
           AND s.actif = true
           AND p.latitude IS NOT NULL AND p.longitude IS NOT NULL
-          AND (:serviceId IS NULL OR s.id = :serviceId)
-          AND (:prixMax   IS NULL OR s.prixIndicatif <= :prixMax)
-          AND (:noteMin   IS NULL OR p.noteMoyenne >= :noteMin)
-          AND (:certifie  IS NULL OR p.certifie = :certifie)
-          AND (:langue    IS NULL OR LOWER(p.langues) LIKE LOWER(CONCAT('%', :langue, '%')))
+          AND (:serviceId  IS NULL OR s.id          = :serviceId)
+          AND (:categoryId IS NULL OR s.categorieId = :categoryId)
+          AND (:prixMax    IS NULL OR s.prixIndicatif <= :prixMax)
+          AND (:noteMin    IS NULL OR p.noteMoyenne >= :noteMin)
+          AND (:certifie   IS NULL OR p.certifie = :certifie)
+          AND (:langue     IS NULL OR LOWER(p.langues) LIKE LOWER(CONCAT('%', :langue, '%')))
         GROUP BY p.userId, p.slug, p.nomCommercial, p.categoriePrincipale, p.noteMoyenne,
                  p.certifie, p.langues, p.zoneIntervention, p.rayonKm, p.latitude, p.longitude
         """)
     List<SearchGeoRow> searchGeo(
-        @Param("serviceId") String serviceId,
-        @Param("prixMax")   BigDecimal prixMax,
-        @Param("noteMin")   BigDecimal noteMin,
-        @Param("certifie")  Boolean certifie,
-        @Param("langue")    String langue);
+        @Param("serviceId")  String serviceId,
+        @Param("categoryId") String categoryId,
+        @Param("prixMax")    BigDecimal prixMax,
+        @Param("noteMin")    BigDecimal noteMin,
+        @Param("certifie")   Boolean certifie,
+        @Param("langue")     String langue);
 }

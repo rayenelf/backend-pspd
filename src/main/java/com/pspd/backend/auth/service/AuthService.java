@@ -106,7 +106,7 @@ public class AuthService {
         try {
             emailVerificationService.sendVerification(user);
         } catch (Exception e) {
-            log.warn("Échec de l'envoi de l'email de vérification à {} : {}", user.getEmail(), e.getMessage());
+            log.warn("Échec de l'envoi de l'email de vérification à {} : {}", user.getEmail(), e.getMessage(), e);
         }
 
         return new RegisterResponse(user.getId(), user.getEmail(), user.getRole().name(), user.getStatutCompte().name());

@@ -15,7 +15,8 @@ import java.time.LocalTime;
 public record CreateReservationRequest(
     @NotBlank String prestataireId,
     @NotBlank String serviceId,
-    @NotBlank String adresseId,
+    String adresseId,
     @NotNull @Future LocalDate dateService,
-    @NotNull LocalTime heureService
+    @NotNull LocalTime heureService,
+    String description
 ) {}

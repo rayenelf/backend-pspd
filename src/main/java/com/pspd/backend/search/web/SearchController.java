@@ -24,6 +24,7 @@ public class SearchController {
     @GetMapping("/api/search")
     public PageResponse<SearchResult> search(
             @RequestParam(required = false) String service,
+            @RequestParam(required = false) String category,
             @RequestParam(required = false) BigDecimal prixMax,
             @RequestParam(required = false) BigDecimal noteMin,
             @RequestParam(required = false) Boolean certifie,
@@ -36,6 +37,6 @@ public class SearchController {
             @RequestParam(required = false) Double lng,
             @RequestParam(required = false) Double rayon) {
 
-        return searchService.search(service, prixMax, noteMin, certifie, langue, tri, page, size, lat, lng, rayon);
+        return searchService.search(service, category, prixMax, noteMin, certifie, langue, tri, page, size, lat, lng, rayon);
     }
 }

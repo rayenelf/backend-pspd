@@ -1,6 +1,7 @@
 package com.pspd.backend.booking.web;
 
 import com.pspd.backend.booking.domain.StatutReservation;
+import com.pspd.backend.booking.dto.AgendaEntryResponse;
 import com.pspd.backend.booking.dto.ReservationResponse;
 import com.pspd.backend.booking.service.ReservationWorkflowService;
 import lombok.RequiredArgsConstructor;
@@ -24,6 +25,19 @@ import java.util.List;
 public class ReservationActionController {
 
     private final ReservationWorkflowService workflow;
+
+    /** Calendrier mensuel du prestataire : missions ACCEPTEE/EN_COURS pour le mois donné. */
+    @GetMapping("/agenda")
+    @PreAuthorize("hasRole('PRESTATAIRE')")
+    public List<AgendaEntryResponse> agenda(
+            @RequestParam(required = false) Integer year,
+            @RequestParam(required = false) Integer month,
+            Authentication auth) {
+        java.time.LocalDate now = java.time.LocalDate.now();
+        return workflow.agendaForMonth(auth.getName(),
+            year  != null ? year  : now.getYear(),
+            month != null ? month : now.getMonthValue());
+    }
 
     /** Liste les missions du prestataire connecté (filtrable par statut). */
     @GetMapping("/mes-missions")

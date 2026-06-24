@@ -2,6 +2,7 @@ package com.pspd.backend.booking.service;
 
 import com.pspd.backend.booking.domain.Reservation;
 import com.pspd.backend.booking.domain.StatutReservation;
+import com.pspd.backend.booking.dto.AgendaEntryResponse;
 import com.pspd.backend.booking.dto.ReservationResponse;
 import com.pspd.backend.booking.repository.ReservationRepository;
 import com.pspd.backend.catalog.domain.Service;
@@ -15,7 +16,11 @@ import org.springframework.http.HttpStatus;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
+import java.time.LocalDate;
 import java.util.List;
+import java.util.Map;
+import java.util.Set;
+import java.util.stream.Collectors;
 
 import static com.pspd.backend.booking.domain.StatutReservation.*;
 
@@ -102,6 +107,40 @@ public class ReservationWorkflowService {
             "Le client a annulé la réservation du " + saved.getDateService()
                 + " (était « " + precedent + " »).");
         return ReservationResponse.from(saved);
+    }
+
+    /** Entrées du calendrier pour un mois donné : missions ACCEPTEE ou EN_COURS. */
+    @Transactional(readOnly = true)
+    public List<AgendaEntryResponse> agendaForMonth(String prestataireEmail, int year, int month) {
+        String prestataireId = userIdDepuisEmail(prestataireEmail);
+        LocalDate from = LocalDate.of(year, month, 1);
+        LocalDate to   = from.withDayOfMonth(from.lengthOfMonth());
+
+        List<Reservation> reservations = reservationRepository
+            .findByPrestataireIdAndStatutInAndDateServiceBetweenOrderByDateServiceAscHeureServiceAsc(
+                prestataireId, List.of(ACCEPTEE, EN_COURS), from, to);
+
+        if (reservations.isEmpty()) return List.of();
+
+        Set<String> clientIds  = reservations.stream().map(Reservation::getClientId).collect(Collectors.toSet());
+        Set<String> serviceIds = reservations.stream().map(Reservation::getServiceId).collect(Collectors.toSet());
+
+        Map<String, User> clients = userRepository.findAllById(clientIds).stream()
+            .collect(Collectors.toMap(User::getId, u -> u));
+        Map<String, Service> services = serviceRepository.findAllById(serviceIds).stream()
+            .collect(Collectors.toMap(Service::getId, s -> s));
+
+        return reservations.stream().map(r -> {
+            User   client  = clients.get(r.getClientId());
+            Service svc    = services.get(r.getServiceId());
+            String  nom    = client == null ? "Client" :
+                ((client.getPrenom() != null ? client.getPrenom() : "") + " "
+                 + (client.getNom()    != null ? client.getNom()    : "")).strip();
+            String libelle = svc == null ? "Service" : svc.getLibelle();
+            return new AgendaEntryResponse(
+                r.getId(), r.getDateService(), r.getHeureService(),
+                r.getStatut(), nom, libelle, r.getPrixConvenu());
+        }).toList();
     }
 
     /** Liste les missions du prestataire connecté (écran « Mes missions », Dev B). */

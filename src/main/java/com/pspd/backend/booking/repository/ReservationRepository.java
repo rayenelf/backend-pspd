@@ -4,6 +4,8 @@ import com.pspd.backend.booking.domain.Reservation;
 import com.pspd.backend.booking.domain.StatutReservation;
 import org.springframework.data.jpa.repository.JpaRepository;
 
+import java.time.LocalDate;
+import java.util.Collection;
 import java.util.List;
 
 /**
@@ -20,4 +22,12 @@ public interface ReservationRepository extends JpaRepository<Reservation, String
     // ── Côté prestataire (Dev B) ─────────────────────────────────────────────
     List<Reservation> findByPrestataireIdOrderByCreeLeDesc(String prestataireId);
     List<Reservation> findByPrestataireIdAndStatutOrderByCreeLeDesc(String prestataireId, StatutReservation statut);
+
+    // ── Agenda (Dev B — calendrier) ──────────────────────────────────────────
+    List<Reservation> findByPrestataireIdAndStatutInAndDateServiceBetweenOrderByDateServiceAscHeureServiceAsc(
+        String prestataireId,
+        Collection<StatutReservation> statuts,
+        LocalDate dateFrom,
+        LocalDate dateTo
+    );
 }

@@ -37,12 +37,13 @@ public class SearchService {
 
     @Transactional(readOnly = true)
     public PageResponse<SearchResult> search(
-            String serviceId, BigDecimal prixMax, BigDecimal noteMin,
+            String serviceId, String categoryId, BigDecimal prixMax, BigDecimal noteMin,
             Boolean certifie, String langue, String tri, int page, int size,
             Double lat, Double lng, Double rayon) {
 
-        serviceId = blankToNull(serviceId);
-        langue    = blankToNull(langue);
+        serviceId  = blankToNull(serviceId);
+        categoryId = blankToNull(categoryId);
+        langue     = blankToNull(langue);
         int safeSize = Math.min(Math.max(size, 1), 100);
         int safePage = Math.max(page, 0);
 
@@ -52,7 +53,7 @@ public class SearchService {
             final double flat = lat, flng = lng;
 
             List<SearchResult> all = searchRepository
-                    .searchGeo(serviceId, prixMax, noteMin, certifie, langue).stream()
+                    .searchGeo(serviceId, categoryId, prixMax, noteMin, certifie, langue).stream()
                     .map(r -> {
                         double d = haversineKm(flat, flng, r.latitude(), r.longitude());
                         int eta = (int) Math.round(d / AVG_SPEED_KMH * 60);
@@ -70,7 +71,7 @@ public class SearchService {
         // ── Mode standard (B2/B3) ────────────────────────────────────────────
         Pageable pageable = PageRequest.of(safePage, safeSize);
         Page<SearchResult> results = searchRepository
-                .search(serviceId, prixMax, noteMin, certifie, langue, tri, pageable)
+                .search(serviceId, categoryId, prixMax, noteMin, certifie, langue, tri, pageable)
                 .map(SearchResult::from);
         return PageResponse.from(results);
     }
