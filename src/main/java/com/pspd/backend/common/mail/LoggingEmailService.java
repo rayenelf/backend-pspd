@@ -1,16 +1,15 @@
 package com.pspd.backend.common.mail;
 
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
+import org.springframework.boot.autoconfigure.condition.ConditionalOnMissingBean;
 import org.springframework.stereotype.Service;
 
 /**
- * Implémentation par défaut (dev, gratuit) : loggue l'email au lieu de l'envoyer.
- * Active tant que {@code app.mail.smtp.enabled} != true.
- * Permet de récupérer les liens de vérification / codes dans la console.
+ * Fallback (dev) : loggue l'email au lieu de l'envoyer.
+ * Active uniquement si ni SMTP ni Resend ne sont activés.
  */
 @Service
-@ConditionalOnProperty(name = "app.mail.smtp.enabled", havingValue = "false", matchIfMissing = true)
+@ConditionalOnMissingBean(EmailService.class)
 @Slf4j
 public class LoggingEmailService implements EmailService {
 
