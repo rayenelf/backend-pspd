@@ -63,6 +63,7 @@ public class SecurityConfig {
                 ).permitAll()
                 // ── Catalogue & recherche publics (Epic B) — lecture seule ──
                 // (POST/PATCH/DELETE catégories & services restent ADMIN via @PreAuthorize)
+                .requestMatchers(HttpMethod.GET, "/api/health").permitAll()
                 .requestMatchers(HttpMethod.GET, "/api/categories/**", "/api/search").permitAll()
                 // ── Photos publiques du prestataire (avatar + portfolio) ──
                 // Seulement la LECTURE par id ; la gestion (/me/...) reste protégée.
