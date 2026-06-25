@@ -4,6 +4,7 @@ import com.pspd.backend.auth.web.JwtAuthenticationFilter;
 import com.pspd.backend.auth.web.OAuth2SuccessHandler;
 import com.pspd.backend.common.error.RestAuthenticationEntryPoint;
 import lombok.RequiredArgsConstructor;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.security.config.annotation.method.configuration.EnableMethodSecurity;
@@ -28,9 +29,12 @@ import java.util.List;
 @RequiredArgsConstructor
 public class SecurityConfig {
 
-    private final OAuth2SuccessHandler         oauth2SuccessHandler;    // B8 (Majd)
-    private final JwtAuthenticationFilter      jwtAuthenticationFilter; // B5
+    private final OAuth2SuccessHandler         oauth2SuccessHandler;
+    private final JwtAuthenticationFilter      jwtAuthenticationFilter;
     private final RestAuthenticationEntryPoint restAuthenticationEntryPoint;
+
+    @Value("${app.cors.allowed-origins}")
+    private String[] allowedOrigins;
 
     @Bean
     public SecurityFilterChain filterChain(HttpSecurity http) throws Exception {
@@ -88,11 +92,10 @@ public class SecurityConfig {
         return http.build();
     }
 
-    /** CORS — liste blanche du frontend (dev). En prod, ajouter le domaine réel. */
     @Bean
     public CorsConfigurationSource corsConfigurationSource() {
         CorsConfiguration config = new CorsConfiguration();
-        config.setAllowedOrigins(List.of("http://localhost:5173", "http://localhost:5174", "http://localhost:5175"));
+        config.setAllowedOrigins(List.of(allowedOrigins));
         config.setAllowedMethods(List.of("GET", "POST", "PATCH", "PUT", "DELETE", "OPTIONS"));
         config.setAllowedHeaders(List.of("Authorization", "Content-Type"));
         config.setAllowCredentials(true);
