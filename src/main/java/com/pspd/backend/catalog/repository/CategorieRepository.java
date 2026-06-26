@@ -4,8 +4,11 @@ import com.pspd.backend.catalog.domain.Categorie;
 import org.springframework.data.jpa.repository.JpaRepository;
 
 import java.util.List;
+import java.util.Optional;
 
 public interface CategorieRepository extends JpaRepository<Categorie, String> {
+
+    Optional<Categorie> findByLibelleIgnoreCase(String libelle);
 
     /** Catégories actives, pour reconstruire l'arbre du catalogue public. */
     List<Categorie> findByActifTrueOrderByLibelleAsc();

@@ -2,6 +2,9 @@ package com.pspd.backend.auth.service;
 
 import com.pspd.backend.auth.dto.RegisterRequest;
 import com.pspd.backend.auth.dto.RegisterResponse;
+import com.pspd.backend.catalog.domain.StatutService;
+import com.pspd.backend.catalog.repository.CategorieRepository;
+import com.pspd.backend.catalog.repository.ServiceRepository;
 import com.pspd.backend.user.domain.*;
 import com.pspd.backend.user.repository.ClientRepository;
 import com.pspd.backend.user.repository.PrestataireRepository;
@@ -14,6 +17,7 @@ import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.web.server.ResponseStatusException;
 import java.time.LocalDateTime;
+import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 
@@ -28,6 +32,8 @@ public class AuthService {
     private final UserRepository userRepository;
     private final ClientRepository clientRepository;
     private final PrestataireRepository prestataireRepository;
+    private final CategorieRepository categorieRepository;
+    private final ServiceRepository serviceRepository;
     private final PasswordEncoder passwordEncoder;
     private final TokenService tokenService;
     private final TwoFactorService twoFactorService;
@@ -99,6 +105,15 @@ public class AuthService {
                     .typePrestataire(typePrestataire)
                     .build();
             prestataireRepository.save(p);
+
+            categorieRepository.findByLibelleIgnoreCase(req.getCategoriePrincipale())
+                    .ifPresent(cat -> {
+                        List<com.pspd.backend.catalog.domain.Service> services =
+                                serviceRepository.findByCategorieIdAndActifTrueAndStatutOrderByLibelleAsc(
+                                        cat.getId(), StatutService.APPROUVE);
+                        p.getServices().addAll(services);
+                        prestataireRepository.save(p);
+                    });
         }
 
         // Envoi du lien de vérification — best-effort : un échec SMTP ne doit pas
