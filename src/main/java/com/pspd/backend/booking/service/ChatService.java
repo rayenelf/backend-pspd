@@ -54,7 +54,7 @@ public class ChatService {
         Conversation conv = chargerConversation(conversationId);
         verifierAcces(conv.getReservationId(), userEmail);
         return enrichir(messageRepository
-            .findByConversationIdAndEnvoyeLeAfterOrderByEnvoyeLeAsc(conversationId, since));
+            .findByConversationIdAndEnvoyeLeGreaterThanEqualOrderByEnvoyeLeAsc(conversationId, since));
     }
 
     @Transactional

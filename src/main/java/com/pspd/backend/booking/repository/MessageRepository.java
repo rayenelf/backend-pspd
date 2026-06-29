@@ -8,5 +8,5 @@ import java.util.List;
 
 public interface MessageRepository extends JpaRepository<Message, String> {
     List<Message> findByConversationIdOrderByEnvoyeLeAsc(String conversationId);
-    List<Message> findByConversationIdAndEnvoyeLeAfterOrderByEnvoyeLeAsc(String conversationId, LocalDateTime after);
+    List<Message> findByConversationIdAndEnvoyeLeGreaterThanEqualOrderByEnvoyeLeAsc(String conversationId, LocalDateTime since);
 }
